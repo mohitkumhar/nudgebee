@@ -2050,10 +2050,10 @@ class CommonService:
         branding_logo = settings.urls.branding_logo_url
         base_url = settings.urls.base_url
 
-        qs = {"space_id": space_name}
+        qs = {"cloudProvider": "google_chat", "space_id": space_name}
         if display_name:
             qs["display_name"] = display_name
-        connect_url = f"{base_url}/integrations/connect/google-chat?{urllib.parse.urlencode(qs)}"
+        connect_url = f"{base_url}/accounts/account-form?{urllib.parse.urlencode(qs)}"
 
         return {
             "cardsV2": [

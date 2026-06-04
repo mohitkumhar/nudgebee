@@ -697,6 +697,13 @@ const Integrations = () => {
       // Map 'status: enabled' to 'active' for consistency
       const status = acc.status === 'enabled' ? 'active' : 'disabled';
 
+      // google_chat_space bindings count under the Google Chat card; the space is the
+      // destination (no channel picker), so seed channels for the messaging badge check.
+      if (acc.type === 'google_chat_space') {
+        addToMap('GOOGLE_CHAT', { ...acc, status, channels: [acc.name] });
+        return;
+      }
+
       // Special case mapping for OTel/Clickhouse naming if needed
       let key = acc.type;
       if (acc.type === 'postgresql') {

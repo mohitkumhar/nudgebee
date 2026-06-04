@@ -1616,12 +1616,29 @@ class Events:
             elif event_type == "ADDED_TO_SPACE":
                 self._handle_gchat_added_to_space(event_data)
             elif event_type == "REMOVED_FROM_SPACE":
-                LOG.info("Bot removed from Google Chat space: %s", event_data.get("space", {}).get("name"))
+                self._handle_gchat_removed_from_space(event_data)
             else:
                 LOG.debug("Unhandled Google Chat event type: %s", event_type)
         except Exception as e:
             LOG.exception("Error handling Google Chat event type=%s: %s", event_type, e)
             raise
+
+    def _handle_gchat_removed_from_space(self, event_data: dict):
+        """Drop the binding when the bot is removed from a space so the listing and
+        notification routing stay accurate. api-server owns the delete."""
+        space_name = (event_data.get("space") or {}).get("name")
+        if not space_name:
+            return
+        try:
+            requests.post(
+                f"{settings.services.api_server}/v1/integration/google-chat/unbind",
+                json={"space_id": space_name},
+                headers={"X-ACTION-TOKEN": settings.action_api_server_token},
+                timeout=10,
+            )
+            LOG.info("Requested Google Chat binding cleanup for removed space %s", space_name)
+        except Exception as e:
+            LOG.warning("Failed to clean up Google Chat binding for removed space %s: %s", space_name, e)
 
     async def _handle_gchat_message(self, event_data: dict):
         """Process an incoming Google Chat message."""

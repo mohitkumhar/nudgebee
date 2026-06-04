@@ -43,6 +43,26 @@ func handleIntegrationApis(r *gin.Engine, tracer *trace.Tracer, meter *metric.Me
 		})
 	})
 
+	// Internal: notifications-server calls this when the bot is removed from a
+	// space (REMOVED_FROM_SPACE) to drop the now-dead binding. X-ACTION-TOKEN is
+	// enforced by the global middleware.
+	groupV2.POST("/google-chat/unbind", func(c *gin.Context) {
+		var body struct {
+			SpaceId string `json:"space_id"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil || body.SpaceId == "" {
+			c.JSON(400, common.ErrorActionBadRequest("space_id is required"))
+			return
+		}
+		deleted, err := core.DeleteGoogleChatSpaceBinding(body.SpaceId)
+		if err != nil {
+			logger.Error("integration: failed to delete google chat binding", "error", err, "space_id", body.SpaceId)
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, gin.H{"deleted": deleted})
+	})
+
 	groupV2.POST("/webhook_request", func(c *gin.Context) {
 		common.MetricsApiRequestsTotal(c.Request.Context(), "integration_webhook_request")
 		payload := map[string]any{}

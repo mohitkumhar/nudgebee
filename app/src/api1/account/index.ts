@@ -396,6 +396,7 @@ const apiAccount = {
         'solarwinds',
         'solarwinds_webhook',
         'workflow_webhook',
+        'google_chat_space',
       ];
 
       const accountsWhere = gqlStringify({ cloud_provider: { _in: cloudProviders } });

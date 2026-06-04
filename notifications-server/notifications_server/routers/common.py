@@ -16,6 +16,7 @@ from notifications_server.schemas.message import (
 from notifications_server.services.common import CommonService
 from notifications_server.services.message import MessageService
 from notifications_server.services.rules import NotificationRulesService
+from notifications_server.clients.google_chat_app_client import GoogleChatAppClient
 
 
 class PlatformInput(BaseModel):
@@ -296,6 +297,29 @@ async def send_test_notification(request: Request, body: Dict[Any, Any]):
     except Exception as e:
         LOG.exception("Error in send_test_notification endpoint: %s", e)
         return JSONResponse({"success": False, "error": f"Unexpected error: {str(e)}"})
+
+
+@router.post("/integrations/google-chat/notify", dependencies=[Depends(verify_action_token)])
+async def notify_google_chat_binding(body: Dict[Any, Any]):
+    """Post a binding-change notice into a Google Chat space (and leave on unbind).
+
+    Called by api-server when a google_chat_space integration is created/deleted;
+    `event` is "bound" or "unbound"."""
+    space_id = body.get("space_id")
+    event = body.get("event")
+    if not space_id or event not in ("bound", "unbound"):
+        raise HTTPException(status_code=400, detail="space_id and event ('bound'|'unbound') are required")
+    if not GoogleChatAppClient.is_enabled():
+        return JSONResponse({"success": False, "reason": "sa_not_configured"})
+    tenant = body.get("tenant_id")
+    if event == "bound":
+        text = f"✅ This space is now connected to {settings.urls.branding_name}. Mention me to get started."
+        result = GoogleChatAppClient.post_message(space=space_id, message=text, tenant=tenant)
+        return JSONResponse({"success": bool(result.get("success"))})
+    text = f"🔌 This space has been disconnected from {settings.urls.branding_name}. Re-add me to reconnect."
+    GoogleChatAppClient.post_message(space=space_id, message=text, tenant=tenant)
+    leave_result = GoogleChatAppClient.leave_space(space_id)
+    return JSONResponse({"success": bool(leave_result.get("success"))})
 
 
 @router.post("/rules/save", status_code=201, dependencies=[Depends(verify_action_token)])
