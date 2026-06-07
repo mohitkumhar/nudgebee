@@ -11,6 +11,7 @@ import AzureADB2CProvider from 'next-auth/providers/azure-ad-b2c';
 import Auth0Provider from 'next-auth/providers/auth0';
 import { Client } from 'ldapts';
 import axios from 'axios';
+import crypto from 'crypto';
 
 import {
   updateUserAccountAccessed,
@@ -607,15 +608,51 @@ interface BootstrapCheckResponse {
  * Cached per email for 5 minutes since bootstrap eligibility is essentially
  * static for the license lifetime — concurrent signins share one fetch.
  */
-const _bootstrapCache = new Map<string, { value: BootstrapCheckResponse; expiresAt: number }>();
+// Cache is keyed by (email + license fingerprint) so a license rotation
+// (email-allowlist change, tier change, tenant change) implicitly
+// invalidates stale entries — the new fingerprint won't hit the old key,
+// and old entries get LRU-evicted below.
+const _bootstrapCache = new Map<string, { value: BootstrapCheckResponse; insertedAt: number; expiresAt: number }>();
 const _bootstrapInflight = new Map<string, Promise<BootstrapCheckResponse>>();
 const _bootstrapTTLSec = 300;
+const _bootstrapCacheMaxEntries = 1000;
+
+// Sweep when full: drop expired entries first, then oldest insertions if
+// still over the cap. Mirrors the pattern in cleanupUserAccessCache above.
+function _evictBootstrapCacheIfFull(now: number): void {
+  if (_bootstrapCache.size < _bootstrapCacheMaxEntries) return;
+  for (const [k, entry] of _bootstrapCache) {
+    if (entry.expiresAt <= now) {
+      _bootstrapCache.delete(k);
+    }
+  }
+  if (_bootstrapCache.size < _bootstrapCacheMaxEntries) return;
+  // Still over cap — drop the oldest 10% by insertion time.
+  const entries = Array.from(_bootstrapCache.entries()).sort((a, b) => a[1].insertedAt - b[1].insertedAt);
+  const drop = Math.ceil(_bootstrapCacheMaxEntries * 0.1);
+  for (let i = 0; i < drop && i < entries.length; i++) {
+    _bootstrapCache.delete(entries[i][0]);
+  }
+}
+
+async function _bootstrapCacheKey(email: string): Promise<string> {
+  // getLicenseDetails is itself cached in @lib/license; this is cheap.
+  // Falls soft to email-only key on license-fetch failure so we don't
+  // cascade a services-server blip into a bootstrap-check storm.
+  try {
+    const lic = await getLicenseDetails();
+    return `${email}|${lic.tier ?? ''}|${lic.tenantId ?? ''}|${lic.email ?? ''}`;
+  } catch {
+    return `${email}|`;
+  }
+}
 
 export async function checkBootstrapAccess(email: string): Promise<BootstrapCheckResponse> {
   const now = Math.floor(Date.now() / 1000);
-  const cached = _bootstrapCache.get(email);
+  const key = await _bootstrapCacheKey(email);
+  const cached = _bootstrapCache.get(key);
   if (cached && cached.expiresAt > now) return cached.value;
-  const inflight = _bootstrapInflight.get(email);
+  const inflight = _bootstrapInflight.get(key);
   if (inflight) return inflight;
 
   const base = process.env.SERVICE_API_SERVER_URL;
@@ -634,13 +671,14 @@ export async function checkBootstrapAccess(email: string): Promise<BootstrapChec
         throw new Error(`license: /v1/license/bootstrap-check returned ${resp.status}`);
       }
       const value = (await resp.json()) as BootstrapCheckResponse;
-      _bootstrapCache.set(email, { value, expiresAt: now + _bootstrapTTLSec });
+      _evictBootstrapCacheIfFull(now);
+      _bootstrapCache.set(key, { value, insertedAt: now, expiresAt: now + _bootstrapTTLSec });
       return value;
     } finally {
-      _bootstrapInflight.delete(email);
+      _bootstrapInflight.delete(key);
     }
   })();
-  _bootstrapInflight.set(email, promise);
+  _bootstrapInflight.set(key, promise);
   return promise;
 }
 
@@ -759,8 +797,14 @@ if (process.env.NEXTAUTH_DUMMY_CREDS_ENABLED == 'true') {
           throw Error('Invalid Username');
         }
         const normalizedUsername = credentials.username.toLowerCase();
+        const configured = process.env.NEXTAUTH_DUMMY_CREDS_PASSWORD || '';
+        if (!configured || configured.startsWith('__REPLACE__')) {
+          throw Error(
+            'Dummy creds password is not configured. Set NEXTAUTH_DUMMY_CREDS_PASSWORD in app/.env (openssl rand -base64 16) before signing in.'
+          );
+        }
         const pwdBuf = Buffer.from(credentials?.password ?? '');
-        const expectedBuf = Buffer.from(process.env.NEXTAUTH_DUMMY_CREDS_PASSWORD ?? '');
+        const expectedBuf = Buffer.from(configured);
         if (pwdBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(pwdBuf, expectedBuf)) {
           throw Error('Invalid Passsword');
         }
