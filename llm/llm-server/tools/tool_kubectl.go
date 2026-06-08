@@ -101,13 +101,16 @@ var kubectlPodVerbs = map[string]bool{
 // kubectlResourceKind applies (slash-form `kind/name`, FQDN `kind.group`,
 // comma list `kind1,kind2`) are used to normalize incoming tokens before
 // matching this map.
+// Short names are the official kubectl aliases declared in each CRD's
+// spec.names.shortNames (External-Secrets-Operator and Secrets-Store CSI
+// driver). `ss` is SecretStore — not statefulsets, which use `sts`.
 var kubectlBlockedResourceKinds = map[string]bool{
 	"secret": true, "secrets": true,
 	"sealedsecret": true, "sealedsecrets": true,
-	"externalsecret": true, "externalsecrets": true,
-	"secretproviderclass": true, "secretproviderclasses": true,
-	"clustersecretstore": true, "clustersecretstores": true,
-	"secretstore": true, "secretstores": true,
+	"externalsecret": true, "externalsecrets": true, "es": true,
+	"secretproviderclass": true, "secretproviderclasses": true, "spc": true, "spcs": true,
+	"clustersecretstore": true, "clustersecretstores": true, "css": true,
+	"secretstore": true, "secretstores": true, "ss": true,
 }
 
 // kubectlBlockResourceVerbs are the subcommands we scan for a blocked

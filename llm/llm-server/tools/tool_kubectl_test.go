@@ -143,6 +143,13 @@ func TestKubectlBlockedKind(t *testing.T) {
 		{"secretstore", "kubectl get secretstore", "secretstore"},
 		{"clustersecretstore", "kubectl get clustersecretstores", "clustersecretstores"},
 
+		// CRD short names (standard kubectl aliases) must also be blocked.
+		{"externalsecret short name 'es'", "kubectl get es", "es"},
+		{"secretproviderclass short name 'spc'", "kubectl get spc my-spc", "spc"},
+		{"secretproviderclass short name 'spcs'", "kubectl get spcs -A", "spcs"},
+		{"secretstore short name 'ss'", "kubectl get ss", "ss"},
+		{"clustersecretstore short name 'css'", "kubectl get css -A", "css"},
+
 		// Cases that MUST NOT be blocked.
 		{"unrelated kind", "kubectl get pods -A", ""},
 		{"pod name contains 'secret' substring", "kubectl get pod secret-rotator -n bar", ""},
