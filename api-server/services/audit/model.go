@@ -100,6 +100,12 @@ const (
 	EventTypeK8sAgentTask EventType = "K8SAGENT_TASK_CREATE"
 	EventTypeK8sRelayTask EventType = "K8SRELAY_TASK_CREATE"
 
+	// Emitted by relay-server when an agent's websocket session transitions
+	// connection state. Kept in sync with the literals in relay-server's
+	// pkg/audit (separate Go module — cannot import this package).
+	EventTypeK8sRelayAgentConnected    EventType = "K8SRELAY_AGENT_CONNECTED"
+	EventTypeK8sRelayAgentDisconnected EventType = "K8SRELAY_AGENT_DISCONNECTED"
+
 	EventTypeTicketConfigCreate EventType = "TICKET_CONFIGURATION_CREATE"
 	EventTypeTicketConfigUpdate EventType = "TICKET_CONFIGURATION_UPDATE"
 	EventTypeTicketConfigDelete EventType = "TICKET_CONFIGURATION_DELETE"
