@@ -642,7 +642,7 @@ def handle_active_resources_deletion(cloud_account_id, tenant, resource_type, to
                     "UPDATE cloud_resourses "
                     "SET is_active = false, status = 'Inactive' "
                     "WHERE account = %s AND external_resource_id != ALL(%s) "
-                    "AND (is_active = true OR is_active IS NULL) AND type = 'Pod'",
+                    "AND is_active IS NOT FALSE AND type = 'Pod'",
                     [cloud_account_id, external_ids],
                 )
                 # Only update k8s_pods for Pod resources
@@ -659,7 +659,7 @@ def handle_active_resources_deletion(cloud_account_id, tenant, resource_type, to
                     "UPDATE cloud_resourses "
                     "SET is_active = false, status = 'Inactive' "
                     "WHERE account = %s AND external_resource_id != ALL(%s) "
-                    "AND (is_active = true OR is_active IS NULL) "
+                    "AND is_active IS NOT FALSE "
                     "AND type NOT IN ('Pod', 'node', 'Namespace', 'External')",
                     [cloud_account_id, external_ids],
                 )
@@ -675,7 +675,7 @@ def handle_active_resources_deletion(cloud_account_id, tenant, resource_type, to
                     "UPDATE cloud_resourses "
                     "SET is_active = false, status = 'Inactive' "
                     "WHERE account = %s AND external_resource_id != ALL(%s) "
-                    "AND (is_active = true OR is_active IS NULL) AND type = 'Job'",
+                    "AND is_active IS NOT FALSE AND type = 'Job'",
                     [cloud_account_id, external_ids],
                 )
                 database.run_query(
@@ -698,7 +698,7 @@ def handle_active_resources_deletion(cloud_account_id, tenant, resource_type, to
                     "UPDATE cloud_resourses "
                     "SET is_active = false, status = 'Inactive' "
                     "WHERE account = %s AND external_resource_id != ALL(%s) "
-                    "AND (is_active = true OR is_active IS NULL) AND type = 'node'",
+                    "AND is_active IS NOT FALSE AND type = 'node'",
                     [cloud_account_id, external_ids],
                 )
                 database.run_query(
@@ -713,7 +713,7 @@ def handle_active_resources_deletion(cloud_account_id, tenant, resource_type, to
                     "UPDATE cloud_resourses "
                     "SET is_active = false, status = 'Inactive' "
                     "WHERE account = %s AND external_resource_id != ALL(%s) "
-                    "AND (is_active = true OR is_active IS NULL) AND type != 'External'",
+                    "AND is_active IS NOT FALSE AND type != 'External'",
                     [cloud_account_id, external_ids],
                 )
 
@@ -827,7 +827,7 @@ def handle_active_resources_deletion(cloud_account_id, tenant, resource_type, to
                 database.run_query(
                     "UPDATE cloud_resourses "
                     "SET is_active = false, status = 'Inactive' "
-                    "WHERE account = %s AND (is_active = true OR is_active IS NULL) AND type = 'Pod'",
+                    "WHERE account = %s AND is_active IS NOT FALSE AND type = 'Pod'",
                     [cloud_account_id],
                 )
                 database.run_query(
@@ -840,7 +840,7 @@ def handle_active_resources_deletion(cloud_account_id, tenant, resource_type, to
                 database.run_query(
                     "UPDATE cloud_resourses "
                     "SET is_active = false, status = 'Inactive' "
-                    "WHERE account = %s AND (is_active = true OR is_active IS NULL) "
+                    "WHERE account = %s AND is_active IS NOT FALSE "
                     "AND type NOT IN ('Pod', 'node', 'Namespace', 'External')",
                     [cloud_account_id],
                 )
@@ -854,7 +854,7 @@ def handle_active_resources_deletion(cloud_account_id, tenant, resource_type, to
                 database.run_query(
                     "UPDATE cloud_resourses "
                     "SET is_active = false, status = 'Inactive' "
-                    "WHERE account = %s AND (is_active = true OR is_active IS NULL) AND type = 'Job'",
+                    "WHERE account = %s AND is_active IS NOT FALSE AND type = 'Job'",
                     [cloud_account_id],
                 )
                 database.run_query(
@@ -867,7 +867,7 @@ def handle_active_resources_deletion(cloud_account_id, tenant, resource_type, to
                 database.run_query(
                     "UPDATE cloud_resourses "
                     "SET is_active = false, status = 'Inactive' "
-                    "WHERE account = %s AND (is_active = true OR is_active IS NULL) AND type = 'node'",
+                    "WHERE account = %s AND is_active IS NOT FALSE AND type = 'node'",
                     [cloud_account_id],
                 )
                 database.run_query(
@@ -976,7 +976,7 @@ def handle_full_load_deleted_resources(cloud_account_id, active_resources, tenan
             "UPDATE cloud_resourses "
             "SET is_active = false, status = 'Inactive' "
             "WHERE account = %s AND external_resource_id != ALL(%s) "
-            "AND (is_active = true OR is_active IS NULL) AND \"type\" = 'External'",
+            "AND is_active IS NOT FALSE AND \"type\" = 'External'",
             [cloud_account_id, resource_keys],
         )
 
