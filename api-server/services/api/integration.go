@@ -77,6 +77,21 @@ func handleIntegrationApis(r *gin.Engine, tracer *trace.Tracer, meter *metric.Me
 		c.JSON(200, result)
 	})
 
+	// Internal: one-off, operator-triggered backfill that encrypts Confluence
+	// integration tokens stored as plaintext before the token field was marked
+	// encrypted (issue #31697). Idempotent — only rewrites is_encrypted=false
+	// rows. X-ACTION-TOKEN is enforced by the global middleware. Operators POST
+	// here once after deploying the encryption change.
+	groupV2.POST("/confluence/backfill_token_encryption", func(c *gin.Context) {
+		result, err := core.BackfillConfluenceTokenEncryption(c.Request.Context(), logger)
+		if err != nil {
+			logger.Error("integration: confluence token backfill failed", "error", err)
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, result)
+	})
+
 	groupV2.POST("/webhook_request", func(c *gin.Context) {
 		common.MetricsApiRequestsTotal(c.Request.Context(), "integration_webhook_request")
 		payload := map[string]any{}
