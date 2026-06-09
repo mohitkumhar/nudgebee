@@ -26,13 +26,16 @@ const (
 	SlackConfigScopes                = "scopes"
 	SlackConfigTeamName              = "team_name"
 	SlackConfigDefaultChannelId      = "default_channel_id"
+	SlackConfigDefaultChannelName    = "default_channel_name"
 )
 
 // Slack connects a Slack workspace (one per tenant, code-enforced at install) to
 // a Nudgebee tenant for notification delivery. integrations.name holds the Slack
 // team (workspace) ID. The OAuth bot token and refresh token are stored encrypted
-// in integration_config_values; the default destination is a scalar
-// default_channel_id (channel names are resolved live from Slack).
+// in integration_config_values; the default destination is the scalar
+// default_channel_id (sending uses the ID). default_channel_name is a cached,
+// non-authoritative display label kept only so the UI can show the channel name
+// without a live Slack lookup.
 type Slack struct{}
 
 func (Slack) Name() string {
@@ -68,6 +71,7 @@ func (Slack) ConfigSchema() core.IntegrationSchema {
 			SlackConfigScopes:                {Type: core.ToolSchemaTypeString, Hidden: true},
 			SlackConfigTeamName:              {Type: core.ToolSchemaTypeString, Description: "Slack workspace name", Hidden: true},
 			SlackConfigDefaultChannelId:      {Type: core.ToolSchemaTypeString, Description: "Default Slack channel ID for notifications"},
+			SlackConfigDefaultChannelName:    {Type: core.ToolSchemaTypeString, Description: "Cached display name of the default Slack channel", Hidden: true},
 		},
 	}
 }

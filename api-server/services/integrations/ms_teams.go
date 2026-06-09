@@ -25,6 +25,8 @@ const (
 	MsTeamsConfigScopes                = "scopes"
 	MsTeamsConfigDefaultTeamId         = "default_team_id"
 	MsTeamsConfigDefaultChannelId      = "default_channel_id"
+	MsTeamsConfigDefaultTeamName       = "default_team_name"
+	MsTeamsConfigDefaultChannelName    = "default_channel_name"
 )
 
 // MsTeams connects Microsoft Teams (one per tenant, code-enforced at install) to
@@ -32,7 +34,9 @@ const (
 // AD tenant ID. The Graph access token and refresh token are stored encrypted in
 // integration_config_values; the default destination is the scalar pair
 // default_team_id + default_channel_id (a Teams channel is a (team_id,channel_id)
-// compound; team/channel names are resolved live from Microsoft Graph).
+// compound; sending uses the IDs). default_team_name / default_channel_name are
+// cached, non-authoritative display labels kept only so the UI can show the
+// team/channel names without a live Microsoft Graph lookup.
 type MsTeams struct{}
 
 func (MsTeams) Name() string {
@@ -67,6 +71,8 @@ func (MsTeams) ConfigSchema() core.IntegrationSchema {
 			MsTeamsConfigScopes:                {Type: core.ToolSchemaTypeString, Hidden: true},
 			MsTeamsConfigDefaultTeamId:         {Type: core.ToolSchemaTypeString, Description: "Default Microsoft Teams team ID for notifications"},
 			MsTeamsConfigDefaultChannelId:      {Type: core.ToolSchemaTypeString, Description: "Default Microsoft Teams channel ID for notifications"},
+			MsTeamsConfigDefaultTeamName:       {Type: core.ToolSchemaTypeString, Description: "Cached display name of the default Microsoft Teams team", Hidden: true},
+			MsTeamsConfigDefaultChannelName:    {Type: core.ToolSchemaTypeString, Description: "Cached display name of the default Microsoft Teams channel", Hidden: true},
 		},
 	}
 }
