@@ -296,6 +296,10 @@ const MessagingIntegrationTile = ({
           account_ids: [],
           source: 'user',
           skip_validation: true,
+          // integration_id switches the backend from create (which rejects the
+          // existing team/workspace name) to update, so re-saving the default
+          // channel for an installed integration persists instead of erroring.
+          ...(inst.id ? { integration_id: inst.id } : {}),
         })
         .then((res) => {
           setIsLoading(false);
