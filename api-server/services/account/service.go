@@ -1904,24 +1904,46 @@ func ListResource(ctx *security.RequestContext, id string) (models.Resource, err
 // K8s workload resourse_id is "<namespace>/<Kind>/<name>" (see k8s-collector
 // discovery_handler.process_service_discovery). We match on the name column plus a
 // "<namespace>/%/<name>" resourse_id pattern so the Kind's exact casing comes from the
-// stored row rather than being guessed from the event's SubjectType. Returns an empty
-// Resource (nil error) when nothing matches, so callers can apply their own not-found handling.
-func GetResourceByWorkload(ctx *security.RequestContext, accountId, namespace, name string) (models.Resource, error) {
+// stored row rather than being guessed from the event's SubjectType. When subjectType is
+// provided it is matched case-insensitively against the type column, disambiguating the
+// common case of a Deployment/Service/Ingress sharing a name in the same namespace.
+//
+// The query is tenant-scoped (in addition to account) for multi-tenant isolation and
+// fails fast on an empty tenant, per the security-context SQL-filter convention. Returns
+// an empty Resource (nil error) when nothing matches, so callers can apply their own
+// not-found handling.
+func GetResourceByWorkload(ctx *security.RequestContext, accountId, namespace, name, subjectType string) (models.Resource, error) {
 	if accountId == "" || namespace == "" || name == "" {
 		return models.Resource{}, nil
+	}
+	tenantId := ctx.GetSecurityContext().GetTenantId()
+	if tenantId == "" {
+		return models.Resource{}, fmt.Errorf("tenant id is required to resolve resource by workload")
 	}
 	databaseManager, err := database.GetDatabaseManager(database.Metastore)
 	if err != nil {
 		return models.Resource{}, err
 	}
-	pattern := namespace + "/%/" + name
-	r := databaseManager.Db.QueryRowx(`SELECT id, created_at, created_by, updated_at, updated_by, resourse_id, name, type,
+	const columns = `id, created_at, created_by, updated_at, updated_by, resourse_id, name, type,
 			status, resourse_created_on, account, cloud_provider, region, arn, tenant, tags, meta,
-			service_name, first_seen, last_seen, is_active, external_resource_id
-		FROM cloud_resourses
-		WHERE account = $1 AND name = $2 AND resourse_id LIKE $3 AND cloud_provider = 'K8s'
-		ORDER BY last_seen DESC NULLS LAST
-		LIMIT 1`, accountId, name, pattern)
+			service_name, first_seen, last_seen, is_active, external_resource_id`
+	pattern := namespace + "/%/" + name
+	var r *sqlx.Row
+	if subjectType != "" {
+		r = databaseManager.Db.QueryRowx(`SELECT `+columns+`
+			FROM cloud_resourses
+			WHERE tenant = $1 AND account = $2 AND name = $3 AND resourse_id LIKE $4
+				AND LOWER(type) = $5 AND cloud_provider = 'K8s'
+			ORDER BY last_seen DESC NULLS LAST
+			LIMIT 1`, tenantId, accountId, name, pattern, strings.ToLower(subjectType))
+	} else {
+		r = databaseManager.Db.QueryRowx(`SELECT `+columns+`
+			FROM cloud_resourses
+			WHERE tenant = $1 AND account = $2 AND name = $3 AND resourse_id LIKE $4
+				AND cloud_provider = 'K8s'
+			ORDER BY last_seen DESC NULLS LAST
+			LIMIT 1`, tenantId, accountId, name, pattern)
+	}
 	if r.Err() != nil {
 		return models.Resource{}, r.Err()
 	}

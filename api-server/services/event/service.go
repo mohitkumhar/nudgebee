@@ -310,7 +310,12 @@ func ApplyEventResolution(ctx *security.RequestContext, query EventRecommendatio
 		// Event was never linked to a cloud_resource_id (e.g. resolved before the
 		// resource synced). Fall back to resolving the K8s workload by namespace+name
 		// within the validated account so revert/replace can still find the resource.
-		cr, err = account.GetResourceByWorkload(ctx, query.AccountId, *r.SubjectNamespace, *r.SubjectName)
+		// SubjectType disambiguates same-named resources of different Kinds.
+		subjectType := ""
+		if r.SubjectType != nil {
+			subjectType = *r.SubjectType
+		}
+		cr, err = account.GetResourceByWorkload(ctx, query.AccountId, *r.SubjectNamespace, *r.SubjectName, subjectType)
 		if err != nil {
 			ctx.GetLogger().Error("error resolving resource from subject", "error", err)
 			return EventRecommendationApplyResponse{}, err
