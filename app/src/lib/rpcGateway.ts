@@ -190,9 +190,16 @@ export type ForwardOptions = {
   requestId: string;
 };
 
+// Shown when a session carries no roles at all (e.g. the user switched to a
+// tenant where they have no assignment). Distinct from `forbidden`, which is
+// for a user who has roles but none that permit the specific action.
+export const NO_TENANT_ROLE_MESSAGE =
+  "You don't have a role assigned in the current tenant. Switch to a tenant where you have access, or ask an administrator to assign you a role.";
+
 export type ForwardError =
   | { kind: 'method_not_found'; method: string }
   | { kind: 'handler_unresolved'; method: string; handler: string }
+  | { kind: 'no_tenant_role'; method: string }
   | { kind: 'forbidden'; method: string; role: string; allowedRoles: string[] }
   | { kind: 'upstream_unreachable'; method: string; url: string; detail: string }
   | { kind: 'upstream_parse_failed'; method: string; url: string; detail: string }
@@ -214,6 +221,13 @@ export async function forwardAction(opts: ForwardOptions): Promise<ForwardResult
   const role = opts.sessionVariables.role || '';
   const allowedRoles = opts.sessionVariables.allowed_roles || [];
   const isSuperAdmin = allowedRoles.includes('super_admin');
+  // No roles at all → the user has no assignment in the active tenant. Report
+  // that as its own error rather than a `forbidden` that would falsely name
+  // `tenant_admin_readonly` (buildSessionVariables' fallback role label, not a
+  // real role the user holds).
+  if (!isSuperAdmin && allowedRoles.length === 0) {
+    return { ok: false, error: { kind: 'no_tenant_role', method: opts.method } };
+  }
   const hasAllowedRole = allowedRoles.some((r) => route.allowedRoles.has(r));
   if (!isSuperAdmin && !hasAllowedRole) {
     return {
@@ -493,6 +507,8 @@ export async function tryBypassGraphQL(opts: {
       };
       if (r.error.kind === 'forbidden') {
         err.extensions = { code: 'FORBIDDEN', role: r.error.role, allowedRoles: r.error.allowedRoles };
+      } else if (r.error.kind === 'no_tenant_role') {
+        err.extensions = { code: 'NO_TENANT_ROLE' };
       } else if (r.error.kind === 'upstream_error') {
         err.extensions = { upstream: { status: r.error.status, body: r.error.payload } };
       }
@@ -562,6 +578,8 @@ function forwardErrorMessage(err: ForwardError): string {
       return `Method not found: ${err.method}`;
     case 'handler_unresolved':
       return `Handler URL unresolved for ${err.method}`;
+    case 'no_tenant_role':
+      return NO_TENANT_ROLE_MESSAGE;
     case 'forbidden':
       return `Role '${err.role}' is not permitted to invoke '${err.method}'`;
     case 'upstream_unreachable':
