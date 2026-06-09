@@ -35,7 +35,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	github.com/wagslane/go-rabbitmq v0.15.0
 	github.com/xiatechs/jsonata-go v1.8.8
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.68.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.63.0
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.44.0
