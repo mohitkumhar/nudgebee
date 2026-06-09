@@ -119,7 +119,7 @@ def call_llm(
         "x-user-id": user_id,
         "Content-Type": "application/json",
     }
-    action_token = os.getenv("ACTION_TOKEN", "")
+    action_token = os.getenv("LLM_SERVER_TOKEN", "")
     if action_token:
         headers["x-action-token"] = action_token
 
@@ -198,7 +198,7 @@ def fetch_conversation(
         "x-user-id": user_id or "",
         "Content-Type": "application/json",
     }
-    action_token = os.getenv("ACTION_TOKEN", "")
+    action_token = os.getenv("LLM_SERVER_TOKEN", "")
     if action_token:
         headers["x-action-token"] = action_token
     try:
@@ -287,7 +287,7 @@ def _poll_for_result(
         "x-user-id": user_id,
         "Content-Type": "application/json",
     }
-    action_token = os.getenv("ACTION_TOKEN", "")
+    action_token = os.getenv("LLM_SERVER_TOKEN", "")
     if action_token:
         headers["x-action-token"] = action_token
     deadline = time.time() + timeout
