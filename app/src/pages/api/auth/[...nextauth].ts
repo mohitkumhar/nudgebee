@@ -11,7 +11,6 @@ import AzureADB2CProvider from 'next-auth/providers/azure-ad-b2c';
 import Auth0Provider from 'next-auth/providers/auth0';
 import { Client } from 'ldapts';
 import axios from 'axios';
-import crypto from 'crypto';
 
 import {
   updateUserAccountAccessed,
