@@ -1100,10 +1100,8 @@ class MessageService:
 
         try:
             async with BaseDB.async_session(self.engine)() as session:
-                result = await session.execute(
-                    select(MessagingPlatform).filter_by(tenant_id=tenant_id, platform=platform)
-                )
-                ip = result.scalars().first()
+                installs = await self.get_installed_platforms(session, tenant_id=tenant_id, platform=platform)
+                ip = next((p for p in installs if p.platform == platform), None)
                 if not ip:
                     return [failed_response(platform, reason="No installation found")]
 
