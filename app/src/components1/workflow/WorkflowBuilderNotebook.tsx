@@ -2173,23 +2173,16 @@ const WorkflowBuilderNoteBook: React.FC<WorkflowBuilderNotebookProps> = ({ mode 
           // "Run live" never needs this branch: it executes the published live
           // version (workflow_versions row), so workflows.definition is
           // irrelevant to the run.
-          const updateRequest = createWorkflowUpdateRequest(
-            accountId,
-            currentWorkflowId,
-            currentWorkflowData?.name || 'Automation',
-            workflowDefinition,
-            currentWorkflowSettings
-          );
-
-          const updateResponse: any = await apiWorkflow.updateWorkflow(updateRequest);
-
-          if (updateResponse.errors) {
-            snackbar.error('Failed to update automation before manual run');
-            console.error('Workflow update error:', updateResponse.errors);
+          //
+          // Save via handleSaveWorkflowRef (not an inline updateWorkflow) so the
+          // full save path runs: reload + change-detection reset clears
+          // hasUnsavedChanges, otherwise WorkflowStateStrip keeps showing
+          // "Unsaved changes" after a successful Run-current save. Call through
+          // the ref so we always run the latest closure (current nodes/edges).
+          const saved = await handleSaveWorkflowRef.current();
+          if (!saved) {
             return;
           }
-
-          snackbar.success('Automation saved successfully');
         }
 
         // Open the trigger input modal instead of immediately executing
