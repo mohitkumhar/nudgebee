@@ -68,25 +68,25 @@ type ImageAttachment struct {
 
 // DO not use for API calls
 type NBAgentRequest struct {
-	Query                 string                   `json:"query" mapstructure:"required" validate:"required"`
-	AccountId             string                   `json:"account_id" mapstructure:"required" validate:"required"`
-	ConversationId        string                   `json:"conversation_id"`
-	AgentId               string                   `json:"agent_id"`
-	ParentAgentId         string                   `json:"parent_agent_id"`
-	MessageId             string                   `json:"message_id"`
-	UserId                string                   `json:"user_id"`
-	ConversationContext   string                   `json:"conversation_context"`
-	QueryContext          string                   `json:"query_context"`
-	QueryConfig           toolcore.NBQueryConfig   `json:"query_config"`
-	EnableQueryRefinement bool                     `json:"enable_query_refinement"`
-	AccountPrompt         string                   `json:"account_prompt"`
-	SessionId             string                   `json:"session_id"`
-	ConversationSource    ConversationSource       `json:"source"`
-	EnableCritique        bool                     `json:"enable_critique"`
-	ClientTools           []toolcore.NBToolCommand `json:"client_tools"`
-	Capabilities          map[string]any           `json:"capabilities"`
-	PreviousState         string                   `json:"previous_state"`
-	Images                []ImageAttachment        `json:"images,omitempty"`
+	Query                 string                     `json:"query" mapstructure:"required" validate:"required"`
+	AccountId             string                     `json:"account_id" mapstructure:"required" validate:"required"`
+	ConversationId        string                     `json:"conversation_id"`
+	AgentId               string                     `json:"agent_id"`
+	ParentAgentId         string                     `json:"parent_agent_id"`
+	MessageId             string                     `json:"message_id"`
+	UserId                string                     `json:"user_id"`
+	ConversationContext   string                     `json:"conversation_context"`
+	QueryContext          string                     `json:"query_context"`
+	QueryConfig           toolcore.NBQueryConfig     `json:"query_config"`
+	EnableQueryRefinement bool                       `json:"enable_query_refinement"`
+	AccountPrompt         string                     `json:"account_prompt"`
+	SessionId             string                     `json:"session_id"`
+	ConversationSource    ConversationSource         `json:"source"`
+	EnableCritique        bool                       `json:"enable_critique"`
+	ClientTools           []toolcore.NBToolCommand   `json:"client_tools"`
+	Capabilities          toolcore.AgentCapabilities `json:"capabilities"`
+	PreviousState         string                     `json:"previous_state"`
+	Images                []ImageAttachment          `json:"images,omitempty"`
 	// SkillsContext carries fully-rendered skill content (a `<skills>...</skills>` block)
 	// for agents whose planner type is AgentPlannerTypeCustom AND whose Execute()
 	// makes direct LLM calls (loganalysis, logs_default.generateFinalResponse,

@@ -152,7 +152,7 @@ const (
 	// a stable system prompt can create a sub-context that overrides this to false.
 	ContextKeyDisableCaching LLMContextKey = "disable_caching"
 	ContextKeyCacheScope     LLMContextKey = "cache_scope"
-	// ContextKeyCapabilities carries the request's Capabilities map into the LLM call
+	// ContextKeyCapabilities carries the request's AgentCapabilities into the LLM call
 	// stack so the cache layer can fingerprint capability-constrained requests and give
 	// them distinct Google AI CachedContent slots.
 	ContextKeyCapabilities LLMContextKey = "capabilities"
@@ -212,13 +212,13 @@ type retryContext struct {
 	userId                   string
 	lastCacheInfo            *CacheResponse // Track cache info from last LLM call
 	cacheScope               CacheScope
-	capabilities             map[string]any // Forwarded to CacheRequest for capability fingerprinting
-	totalStart               time.Time      // Track when the entire retry loop started
-	maxTotalDuration         time.Duration  // Maximum allowed time for the entire retry loop
-	enableCaching            bool           // Whether provider-level prompt caching is enabled for this call
-	hasMalformedFunctionCall bool           // Sticky flag: set when Gemini returns MALFORMED_FUNCTION_CALL, never cleared during retries
-	lastTTFTMs               *int64         // Wall-clock ms from call start → first streamed chunk (last attempt)
-	lastWasStreaming         bool           // Whether the last attempt actually streamed (≥1 chunk seen)
+	capabilities             toolcore.AgentCapabilities // Forwarded to CacheRequest for capability fingerprinting
+	totalStart               time.Time                  // Track when the entire retry loop started
+	maxTotalDuration         time.Duration              // Maximum allowed time for the entire retry loop
+	enableCaching            bool                       // Whether provider-level prompt caching is enabled for this call
+	hasMalformedFunctionCall bool                       // Sticky flag: set when Gemini returns MALFORMED_FUNCTION_CALL, never cleared during retries
+	lastTTFTMs               *int64                     // Wall-clock ms from call start → first streamed chunk (last attempt)
+	lastWasStreaming         bool                       // Whether the last attempt actually streamed (≥1 chunk seen)
 	// resolution is the per-request tier-aware LLM config resolution (carries
 	// Tier + dbConfig). Stored so downstream calls — notably the cache-path
 	// getLLMApiKey — resolve the SAME tier-specific key as the client-build
@@ -1887,7 +1887,7 @@ func generateLLMContentWithRetry(ctx *security.RequestContext, llm llms.Model, p
 	if cacheScope == "" {
 		cacheScope = CacheScopeConversation
 	}
-	capabilities, _ := ctx.GetContext().Value(ContextKeyCapabilities).(map[string]any)
+	capabilities, _ := ctx.GetContext().Value(ContextKeyCapabilities).(toolcore.AgentCapabilities)
 
 	rc := &retryContext{
 		ctx:              ctx,
