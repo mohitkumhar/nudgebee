@@ -196,6 +196,8 @@ Don't run `migrate up` against dev manually — the CI job in [nudgebee-infra](h
 
 ## CI/CD workflows
 
+> **For external contributors:** Nudgebee's hosted SaaS deploys migrations from a private internal-CD repo (`nudgebee-infra`). You don't need access to it. If you're deploying Nudgebee yourself, the [`deploy/kubernetes/nudgebee/`](../../deploy/kubernetes/nudgebee/) Helm chart in this repo runs migrations as a built-in `pre-install,pre-upgrade` Job (see ["How migrations run on deploy"](#how-migrations-run-on-deploy) above) — no separate CI pipeline required. The internal workflows below are documented for transparency only.
+
 The migration build + deploy lives in [`nudgebee-infra`](https://github.com/nudgebee/nudgebee-infra), not this repo:
 
 | Workflow                                     | Trigger                | What it does                                                                  |

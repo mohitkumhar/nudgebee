@@ -191,7 +191,7 @@ The platform is live but empty. A quick tour that takes ~10 minutes:
 
 - **Hit a bug?** Open an issue using the [bug template](.github/ISSUE_TEMPLATE/BUG-REPORT.yml).
 - **Idea for a feature?** Use the [feature template](.github/ISSUE_TEMPLATE/FEATURE-REQUEST.yml).
-- **Want to contribute code?** Read [CONTRIBUTING.md](./CONTRIBUTING.md) — covers CLA, branch model, PR conventions, and local-dev debugging tips. Look for issues tagged `good first issue` (coming soon — see [#30295](https://github.com/nudgebee/nudgebee-enterprise/issues/30295) for context).
+- **Want to contribute code?** Read [CONTRIBUTING.md](./CONTRIBUTING.md) — covers CLA, branch model, PR conventions, and local-dev debugging tips. Look for issues tagged [`good first issue`](https://github.com/nudgebee/nudgebee/labels/good%20first%20issue).
 - **Question that doesn't fit a template?** Email `dev@nudgebee.com` or use the contact links on the [new-issue page](https://github.com/nudgebee/nudgebee/issues/new).
 
 ## Architecture

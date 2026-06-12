@@ -208,7 +208,7 @@ npm run dev
 - **The branding file is read once per process** ([`loadBrandingFile.js`](src/lib/loadBrandingFile.js)). Editing `theme.json` while the dev server runs requires a restart.
 - **MUI palette colors must be hex strings**, not CSS variable references — the MUI theme is built at module load, before CSS variables are applied.
 - **Keep email branding in sync** — `theme.email` is consumed by notifications-server. A partner with mismatched UI/email colors looks broken.
-- **Don't commit partner secrets** to the public branding folder. For customer-specific deployments, ship `theme.json` via a Helm value / ConfigMap (see `nudgebee-infra/deploy/customers/<partner>/`).
+- **Don't commit partner secrets** to the public branding folder. For customer-specific deployments, ship `theme.json` via a Helm value or a ConfigMap mounted at `TENANT_BRANDING_FILE`.
 
 ---
 
