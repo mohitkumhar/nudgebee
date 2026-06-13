@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { useTenantBranding, DEFAULT_LOGO, DEFAULT_FAVICON } from '@hooks/useTenantBranding';
 import Box from '@mui/material/Box';
 import { Button, Collapse, Container, Typography, Menu, IconButton } from '@mui/material';
@@ -204,14 +204,12 @@ const PageLayout = ({ children }) => {
   const session = getUserSession();
   const { baseTitle, logoUrl: brandingLogoUrl, faviconUrl: brandingFaviconUrl, loading: brandingLoading } = useTenantBranding();
 
-  // Logo with fallback to default on error
-  const [logoSrc, setLogoSrc] = useState(brandingLogoUrl || DEFAULT_LOGO);
-  useEffect(() => {
-    setLogoSrc(brandingLogoUrl || DEFAULT_LOGO);
-  }, [brandingLogoUrl]);
-  const handleLogoError = useCallback(() => {
-    setLogoSrc(DEFAULT_LOGO);
-  }, []);
+  // Logo: derived inline from branding. The `!brandingLoading` gate on the <img> below holds the
+  // render until the config resolves, so logoSrc is only ever read with the final value — branded
+  // logo when set, DEFAULT_LOGO only for the default tenant (empty logoUrl). No mirrored state
+  // (which lagged a render and flashed the default logo) and no onError fallback to DEFAULT_LOGO
+  // (on a branded tenant that would leak the Nudgebee logo; a broken URL should surface, not swap).
+  const logoSrc = brandingLogoUrl || DEFAULT_LOGO;
 
   // Favicon from config, fallback to default
   const favicon = brandingFaviconUrl || DEFAULT_FAVICON;
@@ -345,7 +343,6 @@ const PageLayout = ({ children }) => {
                       {!brandingLoading && (
                         <img
                           src={logoSrc}
-                          onError={handleLogoError}
                           alt={baseTitle}
                           aria-label={baseTitle}
                           width={50}
