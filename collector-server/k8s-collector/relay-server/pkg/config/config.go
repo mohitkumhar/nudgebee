@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -232,6 +233,14 @@ func Load() (*Config, error) {
 			// ultimate fallback
 			cfg.RabbitMQ.URL = "amqp://guest:guest@localhost:5672/"
 		}
+	}
+
+	// Insecure-default surfacing. Empty SecretKey makes sha256("") == sha256("")
+	// and any request without an X-SECRET-KEY header authenticates. The Helm chart
+	// auto-generates a secret; Docker Compose / bare deploys do not. Warn loudly
+	// so operators see it in logs, but don't refuse to boot.
+	if cfg.Security.SecretKey == "" {
+		slog.Warn("config: SECURITY — security.secret_key is empty; ClientAuthMiddleware authenticates ANY request without an X-SECRET-KEY header. Set RELAY_SERVER_SECRET_KEY to a strong random value before exposing this service.")
 	}
 
 	return &cfg, nil

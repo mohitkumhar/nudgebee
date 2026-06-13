@@ -40,6 +40,7 @@ import (
 func main() {
 	logger := newLogger()
 	slog.SetDefault(logger)
+	config.LogSecurityWarnings()
 
 	tp, mp, err := initOtel()
 	if err != nil {
