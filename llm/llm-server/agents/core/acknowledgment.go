@@ -24,7 +24,17 @@ type AcknowledgmentResponse struct {
 
 // generateUserAcknowledgment generates an immediate acknowledgment for the user's question
 func generateUserAcknowledgment(ctx *security.RequestContext, userId string, accountId string, conversationId string, messageId string, query string, agentName string) (string, string, error) {
-	_, err := GetLlmModel(ctx, "summary_agent", accountId, conversationId)
+	// Summary tier + global cache scope, used for both the pre-flight model
+	// check and the generation call so they resolve and validate the same model.
+	ackCtx := security.NewRequestContext(
+		context.WithValue(context.WithValue(ctx.GetContext(), ContextKeyModelTier, ModelTierSummary), ContextKeyCacheScope, CacheScopeGlobal),
+		ctx.GetSecurityContext(),
+		ctx.GetLogger(),
+		ctx.GetTracer(),
+		ctx.GetMeter(),
+	)
+
+	_, err := GetLlmModel(ackCtx, "acknowledgment_agent", accountId, conversationId)
 	if err != nil {
 		ctx.GetLogger().Warn("acknowledgment: unable to get LLM model, using fallback", "error", err)
 		return generateFallbackAcknowledgment(query, agentName)
@@ -66,16 +76,7 @@ INTENT: Analyze event ID 12345 to identify any associated errors or issues`
 		llms.TextParts(llms.ChatMessageTypeHuman, fmt.Sprintf("User Query: %s", query)),
 	}
 
-	// Use Lite model for acknowledgment
-	ackCtx := security.NewRequestContext(
-		context.WithValue(context.WithValue(ctx.GetContext(), ContextKeyModelTier, ModelTierSummary), ContextKeyCacheScope, CacheScopeGlobal),
-		ctx.GetSecurityContext(),
-		ctx.GetLogger(),
-		ctx.GetTracer(),
-		ctx.GetMeter(),
-	)
-
-	completion, err := GenerateAndTrackLLMContent(ackCtx, userId, accountId, conversationId, messageId, "summary_agent", false, messageContent, true, WithThinkingLevel(ThinkingLevelFastTask))
+	completion, err := GenerateAndTrackLLMContent(ackCtx, userId, accountId, conversationId, messageId, "acknowledgment_agent", false, messageContent, true, WithThinkingLevel(ThinkingLevelFastTask))
 	if err != nil {
 		ctx.GetLogger().Warn("acknowledgment: LLM call failed, using fallback", "error", err)
 		return generateFallbackAcknowledgment(query, agentName)
