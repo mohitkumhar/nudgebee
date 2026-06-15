@@ -1640,6 +1640,24 @@ class Events:
         except Exception as e:
             LOG.warning("Failed to clean up Google Chat binding for removed space %s: %s", space_name, e)
 
+    @staticmethod
+    def _resolve_incident_binding(incident_binding, tenant_id):
+        """Resolve an incident-thread binding written by the join workflow action.
+
+        Honored only when the binding's tenant matches the validated bound tenant, so
+        reusing the incident's session/account never widens the binding security
+        boundary. Returns (session_id, account_id) — both None when not applicable.
+        """
+        if (
+            incident_binding
+            and incident_binding.get("session_id")
+            and incident_binding.get("tenant_id")
+            and tenant_id
+            and str(incident_binding.get("tenant_id")) == str(tenant_id)
+        ):
+            return incident_binding["session_id"], incident_binding.get("account_id")
+        return None, None
+
     async def _handle_gchat_message(self, event_data: dict):
         """Process an incoming Google Chat message."""
         try:
@@ -1719,6 +1737,14 @@ class Events:
                 self.common_service.gchat_reply_in_thread(space_name, thread_name, get_exit_message(), tenant_id)
                 return
 
+            # Incident-thread binding (parity with Slack /channels/join): if this
+            # thread was anchored by a "Join Notification Channel" workflow action,
+            # follow-ups carry the incident's session + account so the bot answers
+            # with the incident's context instead of starting a fresh conversation.
+            incident_binding = self.cache.get_channel_session_mapping(thread_name, space_name)
+            incident_session_id, incident_account_id = self._resolve_incident_binding(incident_binding, tenant_id)
+            session_id = incident_session_id or thread_name
+
             # Cache the event entry
             event_entry = {
                 "event_id": message_name,
@@ -1727,15 +1753,21 @@ class Events:
                 "user_email": user_email,
                 "space_name": space_name,
                 "thread_name": thread_name,
-                "session_id": thread_name,
+                "session_id": session_id,
                 "platform": "google_chat",
                 "tenant_id": tenant_id,
             }
             self.cache.cache_event_entry(thread_name, event_entry)
 
-            await self._handle_gchat_new_conversation(
-                user_id, scoped_tenants, space_name, thread_name, tenant_id, message_text
-            )
+            if incident_account_id:
+                # Account is known from the incident binding — skip account selection.
+                await self._handle_gchat_mapped_account(
+                    {"id": incident_account_id}, thread_name, space_name, tenant_id, message_text
+                )
+            else:
+                await self._handle_gchat_new_conversation(
+                    user_id, scoped_tenants, space_name, thread_name, tenant_id, message_text
+                )
 
         except Exception as e:
             LOG.exception("Error handling Google Chat message: %s", e)

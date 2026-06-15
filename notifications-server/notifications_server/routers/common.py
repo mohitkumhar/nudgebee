@@ -153,12 +153,13 @@ async def join_channel(request: Request, payload: Dict[Any, Any], background_tas
                 status_code=400,
             )
 
-        # Only support Slack for now
-        if platform.lower() not in ["slack"]:
+        # Slack joins a channel; Google Chat self-joins a space (service-account bot).
+        if platform.lower() not in ["slack", "google_chat"]:
             return JSONResponse(
                 {
                     "error": {
-                        "message": f"Platform {platform} is not supported yet. Only 'slack' is currently supported."
+                        "message": f"Platform {platform} is not supported yet. "
+                        "Only 'slack' and 'google_chat' are currently supported."
                     }
                 },
                 status_code=400,

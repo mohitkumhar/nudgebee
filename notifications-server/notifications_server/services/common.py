@@ -244,6 +244,9 @@ class CommonService:
 
     def join_channel(self, platform, account_id, tenant_id, channel_id, session_id=None, team_id=None, text=None):
         try:
+            if platform == "google_chat":
+                return self._join_google_chat_space(account_id, tenant_id, channel_id, session_id, text)
+
             if platform != "slack":
                 return {"error": {"message": f"Platform {platform} is not supported yet"}}
 
@@ -307,6 +310,70 @@ class CommonService:
             # traceback via LOG.exception for debugging.
             LOG.exception("Error joining channel")
             return {"error": {"message": "Unexpected error while joining channel"}}
+
+    def _join_google_chat_space(self, account_id, tenant_id, channel_id, session_id=None, text=None):
+        """Self-join a Google Chat space and bind its incident thread to a session.
+
+        Parity with the Slack /channels/join flow. Google Chat differs in two ways:
+        one service-account bot serves all tenants (no per-tenant token lookup), and
+        conversations are thread-scoped — so the proactive post anchors a thread and
+        we bind thread -> session (not space -> session). That keeps a shared incident
+        space correct (one thread per incident) and is resolved on the inbound side in
+        events._handle_gchat_message.
+        """
+        if not GoogleChatAppClient.is_enabled():
+            return {"error": {"message": "Google Chat service account is not configured"}}
+
+        join_result = GoogleChatAppClient.join_space(channel_id)
+        if not join_result.get("success"):
+            if join_result.get("reason") == "needs_authorization":
+                return {
+                    "error": {
+                        "message": "Google Chat app needs admin authorization "
+                        "(chat.app.memberships) before it can join spaces."
+                    }
+                }
+            return {
+                "error": {"message": f"Failed to join Google Chat space: {join_result.get('error') or 'unknown error'}"}
+            }
+
+        message = text or f"{settings.urls.branding_name} has joined for this incident — reply here with questions."
+        post_result = GoogleChatAppClient.post_message(space=channel_id, message=message, tenant=tenant_id)
+        thread_name = post_result.get("thread_name") if post_result.get("success") else None
+
+        if session_id and thread_name:
+            # team_id := space name so the key pairs with the inbound lookup
+            # get_channel_session_mapping(thread_name, space_name).
+            cache.cache_channel_session_mapping(
+                channel_id=thread_name,
+                team_id=channel_id,
+                session_id=session_id,
+                account_id=account_id,
+                tenant_id=tenant_id,
+            )
+            LOG.info(
+                "Bound Google Chat incident thread %s (space %s) -> session_id=%s",
+                thread_name,
+                channel_id,
+                session_id,
+            )
+        elif session_id:
+            LOG.warning(
+                "Joined Google Chat space %s but could not post the anchor message; "
+                "follow-ups will not carry incident context",
+                channel_id,
+            )
+
+        return {
+            "success": True,
+            "message": "Successfully joined Google Chat space",
+            "data": {
+                "channel_id": channel_id,
+                "thread_name": thread_name,
+                "session_id": session_id,
+                "platform": "google_chat",
+            },
+        }
 
     def _get_messaging_platform(self, tenant_id, team_id, platform):
         # Slack callers may target a specific workspace by team_id; MS Teams/Google
