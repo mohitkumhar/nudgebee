@@ -1211,7 +1211,8 @@ func (s *Service) RetriggerWorkflowExecution(ctx *security.RequestContext, accou
 		return "", common.ErrorBadRequest(fmt.Sprintf("cannot relay running workflow execution %s", executionId))
 	}
 
-	// 3. Retrieve original workflow definition to validate
+	// 3. Retrieve the current workflow row for status check, tags, and row
+	// metadata. The DEFINITION to run is NOT taken from here — see step 3b.
 	wf, err := s.store.Find(ctx.GetContext(), ctx.GetSecurityContext().GetTenantId(), accountId, workflowId)
 	if err != nil {
 		return "", fmt.Errorf("failed to retrieve workflow definition: %w", err)
@@ -1220,6 +1221,20 @@ func (s *Service) RetriggerWorkflowExecution(ctx *security.RequestContext, accou
 	if wf.Status != model.WorkflowStatusActive && wf.Status != model.WorkflowStatusPaused {
 		return "", fmt.Errorf("workflow %s is not active or paused", workflowId)
 	}
+
+	// 3b. Resolve the EXACT version that the original execution ran, and re-run
+	// that snapshot — not the current live/draft definition. Fail loudly rather
+	// than silently running a different version (which would defeat the point of
+	// a retry once the workflow has been edited).
+	if details.VersionID == nil || *details.VersionID == "" {
+		return "", common.ErrorBadRequest(fmt.Sprintf("execution %s predates version tracking; cannot retry exactly", executionId))
+	}
+	pinnedVersion, err := s.store.GetWorkflowVersionByID(ctx.GetContext(), *details.VersionID)
+	if err != nil || pinnedVersion == nil {
+		return "", common.ErrorBadRequest(fmt.Sprintf("workflow version %s is no longer available (pruned by retention); cannot retry execution %s exactly", *details.VersionID, executionId))
+	}
+	// Run the pinned snapshot's definition everywhere downstream.
+	wf.Definition = pinnedVersion.Definition
 
 	// 4. Merge inputs
 	mergedInputs := make(map[string]any)
@@ -1268,10 +1283,16 @@ func (s *Service) RetriggerWorkflowExecution(ctx *security.RequestContext, accou
 		}
 	}
 
+	// Stamp the pinned version's identity into Memo so the new run is linked to
+	// the same version that was retried (mirrors ExecuteWorkflow), keeping the
+	// execution-detail UI accurate.
+	memo := model.WorkflowVersionMemo(pinnedVersion)
+
 	options := client.StartWorkflowOptions{
 		ID:                       runWorkflowID,
 		TaskQueue:                config.Config.RunbookServerTemporalQueue,
 		SearchAttributes:         searchAttributes,
+		Memo:                     memo,
 		WorkflowExecutionTimeout: workflowTimeout,
 	}
 
