@@ -130,8 +130,11 @@ def main():
             by_v_all[p["v"]].add(p["ts"])
         pair[(p["ts"], p["v"], p["name"])].add(p["dir"])
 
-    def is_new(ts):
-        return bool(base_ts) and ts not in base_ts
+    def is_new(filename):
+        # Newness keys on the filename, not the timestamp: a new file that
+        # *reuses* an existing timestamp must still be classified as new so the
+        # duplicate-timestamp check (A) below fires on it instead of skipping it.
+        return bool(base_files) and filename not in base_files
 
     # Malformed names: hard only if the file is new (absent from reference
     # branches); pre-existing malformed files are grandfathered as warnings.
@@ -145,7 +148,7 @@ def main():
     # each problem is reported once, not twice.
     new_idents = {}
     for p in files:
-        if is_new(p["ts"]):
+        if is_new(p["file"]):
             new_idents.setdefault((p["ts"], p["v"], p["name"]), p)
     seen_new_v = {}
     for (ts, v, name), p in sorted(new_idents.items(), key=lambda kv: kv[0][0]):
@@ -192,7 +195,7 @@ def main():
         print(f"\n{len(errors)} blocking problem(s); {len(warnings)} legacy warning(s).")
         sys.exit(1)
 
-    new_count = len([p for p in files if is_new(p["ts"])])
+    new_count = len(new_idents)
     print(f"Migration validation passed: {new_count} new migration(s) clean, "
           f"{len(warnings)} legacy warning(s).")
 
