@@ -371,13 +371,29 @@ func mergeRefs(toolRefs, fileRefs []toolcore.NBToolResponseReference) []toolcore
 	return merged
 }
 
+// logInlinePreviewBytes bounds how much log text is inlined into the response
+// envelope when the full logs have been saved to a workspace file. The model is
+// instructed to grep <file_ref> for the full content, so the inline copy is only
+// a preview — inlining the full logs (often 50k-200k tokens) alongside the
+// file_ref duplicated the payload and dominated prompt size.
+const logInlinePreviewBytes = 4096
+
 // makeFetchResponse returns {query, logs, file_ref} so the parent's scratchpad
 // shows which query produced the data and where the raw logs were saved.
 // file_ref lets shell_execute grep the saved file directly without re-fetching.
+// When a file_ref exists, only a head preview of the logs is inlined; the full
+// content lives in the file and is reached via shell_execute grep.
 func makeFetchResponse(agentName, query, logs, fileRef string, refs []toolcore.NBToolResponseReference) core.NBAgentResponse {
+	inlineLogs := logs
+	if fileRef != "" && len(logs) > logInlinePreviewBytes {
+		// ToValidUTF8 drops a partial trailing rune left by the byte slice.
+		inlineLogs = strings.ToValidUTF8(logs[:logInlinePreviewBytes], "") + fmt.Sprintf(
+			"\n\n[... %d more bytes truncated — full logs saved to file_ref %q; use shell_execute to grep it ...]",
+			len(logs)-logInlinePreviewBytes, fileRef)
+	}
 	envelope := map[string]string{
 		"query":    query,
-		"logs":     logs,
+		"logs":     inlineLogs,
 		"file_ref": fileRef,
 	}
 	body, err := common.MarshalJson(envelope)
