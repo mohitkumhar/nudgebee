@@ -158,6 +158,23 @@ type WorkflowVersion struct {
 	CreatedAt     time.Time      `json:"created_at"`
 }
 
+// WorkflowVersionMemo builds the canonical execution-to-version Temporal Memo
+// (MemoWorkflowVersionID / Number / Name) for a version snapshot. Every path
+// that runs a specific version — manual/webhook/event/optimization
+// (ExecuteWorkflow), retry, scheduled runs, and call-workflow — stamps the same
+// keys so GetDetailedWorkflowExecution and retry resolve the run to its version.
+func WorkflowVersionMemo(v *WorkflowVersion) map[string]any {
+	name := ""
+	if v.Name != nil {
+		name = *v.Name
+	}
+	return map[string]any{
+		MemoWorkflowVersionID:     v.ID,
+		MemoWorkflowVersionNumber: int64(v.VersionNumber),
+		MemoWorkflowVersionName:   name,
+	}
+}
+
 // WorkflowStatus defines the administrative status of a workflow definition.
 type WorkflowStatus string
 

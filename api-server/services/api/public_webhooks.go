@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"nudgebee/services/account"
 	"nudgebee/services/common"
@@ -467,8 +468,42 @@ func buildPRURL(repoHTMLURL string, prNumber int) string {
 	return fmt.Sprintf("%s/pull/%d", repoHTMLURL, prNumber)
 }
 
+// defaultWebhookMaxBodyBytes bounds an inbound webhook request body when no
+// WEBHOOK_MAX_BODY_BYTES override is configured. Provider alert payloads are
+// small JSON; this ceiling stays generous enough for batched events (GitHub
+// pushes, Event Grid arrays) while preventing an unbounded io.ReadAll from
+// buffering a hostile or malformed payload into memory — the root cause of the
+// 152 MB OOM crash (#26787).
+const defaultWebhookMaxBodyBytes = 5 << 20 // 5 MiB
+
+// limitWebhookBodyMiddleware rejects an inbound webhook whose body exceeds the
+// configured WEBHOOK_MAX_BODY_BYTES (falling back to defaultWebhookMaxBodyBytes
+// when unset). A declared Content-Length over the limit is rejected up front
+// with 413 before any body is read; MaxBytesReader is the backstop for
+// chunked/understated bodies, capping the read so a downstream io.ReadAll can't
+// buffer past the limit.
+func limitWebhookBodyMiddleware() gin.HandlerFunc {
+	limit := int64(config.Config.WebhookMaxBodyBytes)
+	if limit <= 0 {
+		limit = defaultWebhookMaxBodyBytes
+	}
+	return func(c *gin.Context) {
+		if c.Request.ContentLength > limit {
+			slog.Warn("webhook: rejected oversize request body",
+				"path", c.Request.URL.Path, "content_length", c.Request.ContentLength, "limit", limit)
+			c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge,
+				common.ErrorActionBadRequest("request body exceeds size limit"))
+			return
+		}
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, limit)
+		c.Next()
+	}
+}
+
 func handlePublicWebhooksApis(r *gin.Engine, tracer *trace.Tracer, meter *metric.Meter, logger *slog.Logger) {
 	webhookGroup := r.Group("/api/webhooks")
+	// Bound every inbound webhook body to prevent unbounded-payload OOM (see #26787).
+	webhookGroup.Use(limitWebhookBodyMiddleware())
 
 	// Register webhook handlers using the generic handler
 	webhookGroup.POST("/pagerduty", genericWebhookHandler("pagerduty", tracer, meter, logger))

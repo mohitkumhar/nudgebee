@@ -263,7 +263,7 @@ export function Tabs({
           '& .MuiTabs-indicator': {
             display: 'block',
             height: 2,
-            backgroundColor: 'var(--ds-blue-500)',
+            backgroundColor: 'var(--ds-tab-active-indicator, var(--ds-blue-500))',
           },
           '& .MuiTabs-flexContainer': { gap: ds.space.mul(0, 3) },
         }}
@@ -284,11 +284,11 @@ export function Tabs({
               fontWeight: 'var(--ds-font-weight-medium)',
               color: 'var(--ds-gray-600)',
               '&.Mui-selected': {
-                color: 'var(--ds-blue-600)',
+                color: 'var(--ds-tab-active, var(--ds-blue-600))',
                 fontWeight: 'var(--ds-font-weight-medium)',
               },
               '&:hover': {
-                color: 'var(--ds-blue-600)',
+                color: 'var(--ds-tab-active, var(--ds-blue-600))',
                 backgroundColor: 'var(--ds-gray-100)',
               },
             }}

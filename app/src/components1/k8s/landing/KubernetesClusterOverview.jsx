@@ -222,7 +222,7 @@ const KubernetesClusterOverview = () => {
               sx={{
                 fontSize: 'var(--ds-text-title)',
                 fontWeight: 'var(--ds-font-weight-semibold)',
-                color: 'var(--ds-brand-700)',
+                color: 'var(--ds-foreground)',
                 mb: ds.space[2],
                 fontFamily: 'Poppins',
               }}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/router';
 import PropTypes from 'prop-types';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -504,9 +504,15 @@ const KubernetesEventsTable = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Sync the account selection when the prop / URL query supplies one (deep links,
+  // account-scoped page, router becoming ready). When neither is present, leave the
+  // current selection alone — clobbering it to [] here would wipe the value the
+  // useState initializer seeded from persisted localStorage, so the saved filter
+  // would never apply on return to the tab. Clearing is handled by the change handler.
   useEffect(() => {
     const raw = accountId || router.query.accountId;
-    const next = raw ? String(raw).split(',').filter(Boolean) : [];
+    if (!raw) return;
+    const next = String(raw).split(',').filter(Boolean);
     setSelectedAccountId((prev) => {
       if (prev.length === next.length && prev.every((id, i) => id === next[i])) return prev;
       return next;
@@ -795,10 +801,19 @@ const KubernetesEventsTable = ({
 
   // --- Data Fetching ---
 
+  // Monotonic token guarding against out-of-order responses. Filters settle over
+  // several renders on mount (accountType resolves async, persisted values seed in),
+  // so multiple listEvents calls can be in flight at once. Without this, whichever
+  // response lands last wins — a stale default-filter response can overwrite the
+  // correct applied-filter data. Only the latest request is allowed to commit state.
+  const eventsRequestSeqRef = useRef(0);
+
   const listEvents = () => {
     if (!selectedAccountId.length && !isTroubleshootPage) {
       return;
     }
+    const requestSeq = ++eventsRequestSeqRef.current;
+    const isStaleRequest = () => requestSeq !== eventsRequestSeqRef.current;
     setData([]);
     setTotalCount([]);
     let query = {
@@ -1100,6 +1115,7 @@ const KubernetesEventsTable = ({
 
     // Data + tickets chain: once data arrives, fetch ticket summaries, then render
     const dataAndTicketsPromise = dataPromise.then((res) => {
+      if (isStaleRequest()) return undefined;
       const events = res.data?.events || [];
       const uniqueReferenceIds = new Set();
       events.forEach((item) => {
@@ -1108,6 +1124,7 @@ const KubernetesEventsTable = ({
       const references = Array.from(uniqueReferenceIds);
 
       return ticketsApi.listTicketsSummary({ reference_id: references }).then((ticketRes) => {
+        if (isStaleRequest()) return;
         const ticketReferenceMap = new Map();
         ticketRes?.data?.tickets?.forEach((element) => {
           ticketReferenceMap.set(element.reference_id, element);
@@ -1120,11 +1137,13 @@ const KubernetesEventsTable = ({
 
     // Count updates independently (doesn't block table rendering)
     countPromise.then((countRes) => {
+      if (isStaleRequest()) return;
       setTotalCount(countRes.count);
     });
 
     // Handle errors from the data chain
     dataAndTicketsPromise.catch(() => {
+      if (isStaleRequest()) return;
       setLoading(false);
     });
   };
@@ -1153,6 +1172,10 @@ const KubernetesEventsTable = ({
     selectedSource,
     isTroubleshootPage,
     accounts.length,
+    // accountType gates the cloud-only service-name / event-name query branch
+    // (resolves async K8s -> AWS/GCP/Azure after mount). Without it, a persisted
+    // service-name filter shows selected but never re-fetches once the type lands.
+    accountType,
     selectedServiceName,
     selectedEventName,
     selectedNbStatus,

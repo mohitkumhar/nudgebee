@@ -150,7 +150,7 @@ const K8sClusterInsights = ({ accountId }) => {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text
           value={'Insights'}
-          sx={{ fontWeight: 'var(--ds-font-weight-semibold)', fontSize: 'var(--ds-text-body)', color: 'var(--ds-brand-500)' }}
+          sx={{ fontWeight: 'var(--ds-font-weight-semibold)', fontSize: 'var(--ds-text-body)', color: 'var(--ds-gray-600)' }}
         />
         {hasMore && (
           <Typography

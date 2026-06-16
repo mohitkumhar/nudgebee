@@ -100,7 +100,7 @@ export default function CustomizedSlider({
         <Typography
           sx={{
             fontSize: 'var(--ds-text-body-lg)',
-            color: 'var(--ds-brand-700)',
+            color: 'var(--ds-foreground)',
             whiteSpace: 'nowrap',
             marginRight: 'var(--ds-space-1)',
           }}
@@ -133,7 +133,7 @@ export default function CustomizedSlider({
         <Typography
           sx={{
             fontSize: 'var(--ds-text-body-lg)',
-            color: 'var(--ds-brand-700)',
+            color: 'var(--ds-foreground)',
             whiteSpace: 'nowrap',
             marginLeft: 'var(--ds-space-1)',
           }}

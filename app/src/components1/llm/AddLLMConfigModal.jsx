@@ -1695,7 +1695,7 @@ const AddLLMConfigModal = ({ open, onClose, editData, onSaved, accountId }) => {
           <Box sx={{ flex: 1, minHeight: ds.space.mul(2, 3), fontSize: 'var(--ds-text-body)', color: 'var(--ds-gray-500)' }}>
             {hasAnyError && (
               <Box component='span' sx={{ color: 'var(--ds-red-600)', fontWeight: 'var(--ds-font-weight-semibold)' }}>
-                ✗ Fix the highlighted fields above before testing.
+                ✗ Please fix the highlighted errors above to enable Test Connection.
               </Box>
             )}
             {!hasAnyError && testStatus === 'passed' && (

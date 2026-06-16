@@ -4766,7 +4766,7 @@ const ActionDetailsSidebar: React.FC<ActionDetailsSidebarProps> = ({
         }}
       >
         <Box>
-          <Typography sx={{ fontSize: 'var(--ds-text-title)', fontWeight: 'var(--ds-font-weight-semibold)', color: 'var(--ds-brand-700)' }}>
+          <Typography sx={{ fontSize: 'var(--ds-text-title)', fontWeight: 'var(--ds-font-weight-semibold)', color: 'var(--ds-foreground)' }}>
             {`Action Details - ${
               selectedNode?.data?.label || currentTaskDefinition?.display_name || currentTaskDefinition?.description || selectedActionType
             }`}

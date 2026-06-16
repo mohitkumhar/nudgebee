@@ -53,7 +53,7 @@ const HighlightText = ({ message, highlightWords = DEFAULT_HIGHLIGHT_WORDS, clus
       sx={{
         fontSize: 'var(--ds-text-body)',
         fontWeight: 'var(--ds-font-weight-regular)',
-        color: 'var(--ds-brand-500)',
+        color: 'var(--ds-gray-700)',
       }}
     >
       {containsHighlight ? highlight() : message}

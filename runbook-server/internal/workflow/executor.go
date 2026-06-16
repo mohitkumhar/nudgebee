@@ -1261,6 +1261,13 @@ func processTaskLoop(
 							cwo := workflow.ChildWorkflowOptions{
 								WorkflowID: fmt.Sprintf("%s-%s-%s", wf.ID, task.ID, uuid.New().String()), // Unique Run ID
 								TaskQueue:  config.Config.RunbookServerTemporalQueue,
+								// No workflow-version Memo here on purpose: GetChildWorkflowDefinition
+								// already pins the child to the callee's LIVE version, and the
+								// execution-detail drill-down resolves the child via child_definition_id
+								// + Temporal history (not the version Memo). Children are retried
+								// through their parent, never independently, so the version linkage
+								// keys (which ExecuteWorkflow stamps on top-level runs) have no
+								// consumer here.
 								Memo: map[string]interface{}{
 									"parent_task_id":               task.ID,
 									"child_definition_id":          childWfID,

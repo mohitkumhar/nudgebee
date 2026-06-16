@@ -110,11 +110,17 @@ func (t *CallWorkflowTask) Execute(taskCtx types.TaskContext, params map[string]
 		)
 	}
 
-	// Look up the target workflow definition.
+	// Look up the target workflow, then resolve its LIVE published version — the
+	// fallback start must also run the callee's live version, not its draft (H2).
 	targetWf, err := taskCtx.GetStore().FindByName(taskCtx.GetContext(), tenantID, accountID, workflowName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find workflow '%s': %w", workflowName, err)
 	}
+	liveVersion, err := taskCtx.GetStore().GetLiveWorkflowVersion(taskCtx.GetContext(), targetWf.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load live version of workflow '%s': %w", workflowName, err)
+	}
+	targetWf.Definition = liveVersion.Definition
 
 	// Override defaults with any provided inputs so the started workflow sees them.
 	providedInputs, ok := params["inputs"].(map[string]any)
@@ -143,6 +149,12 @@ func (t *CallWorkflowTask) Execute(taskCtx types.TaskContext, params map[string]
 	// a `cw-<uuid>` prefix is unique per run and stays well within bounds. Parent
 	// linkage is preserved via the SearchAttributes below.
 	runWfID := fmt.Sprintf("cw-%s", uuid.New().String())
+	// Link the run to the callee's live version (version banner + retryability —
+	// this fallback starts a top-level workflow) and carry the recursion-depth
+	// counter forward.
+	memo := model.WorkflowVersionMemo(liveVersion)
+	memo[types.MemoKeyCallWorkflowDepth] = callWfDepth + 1
+
 	options := client.StartWorkflowOptions{
 		ID:                       runWfID,
 		TaskQueue:                config.Config.RunbookServerTemporalQueue,
@@ -153,9 +165,7 @@ func (t *CallWorkflowTask) Execute(taskCtx types.TaskContext, params map[string]
 			model.SearchAttrWorkflowID:       targetWf.ID,
 			model.SearchAttrParentWorkflowID: taskCtx.GetWorkflowID(),
 		},
-		Memo: map[string]any{
-			types.MemoKeyCallWorkflowDepth: callWfDepth + 1,
-		},
+		Memo: memo,
 	}
 
 	// Use the registered workflow type name as a string (importing the workflow
@@ -251,18 +261,25 @@ func (t *CallWorkflowTask) GetChildWorkflowDefinition(taskCtx types.TaskContext,
 		return nil, fmt.Errorf("tenantID or accountID missing from TaskContext for core.call-workflow task")
 	}
 
-	// Fetch the workflow definition from the store
+	// Fetch the workflow row, then resolve its LIVE published version. The child
+	// must run the callee's live version, not its draft (workflows.definition) —
+	// otherwise a published parent silently runs the callee's unpublished edits (H2).
 	wf, err := taskCtx.GetStore().FindByName(context.TODO(), tenantID, accountID, workflowName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find workflow '%s' referenced by core.call-workflow task: %w", workflowName, err)
 	}
+	liveVersion, err := taskCtx.GetStore().GetLiveWorkflowVersion(context.TODO(), wf.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load live version of workflow '%s' for core.call-workflow task: %w", workflowName, err)
+	}
+	liveDef := liveVersion.Definition
 
 	// Apply provided inputs to the child workflow's definition
 	providedInputs, _ := params["inputs"].(map[string]any) // Can be nil if not provided
 
 	// Create a new slice for inputs to avoid modifying the original workflow definition fetched from store
-	childInputs := make([]model.Input, len(wf.Definition.Inputs))
-	copy(childInputs, wf.Definition.Inputs)
+	childInputs := make([]model.Input, len(liveDef.Inputs))
+	copy(childInputs, liveDef.Inputs)
 
 	for i, inputDef := range childInputs {
 		if val, ok := providedInputs[inputDef.ID]; ok {
@@ -272,15 +289,15 @@ func (t *CallWorkflowTask) GetChildWorkflowDefinition(taskCtx types.TaskContext,
 
 	// Create a new WorkflowDefinition to return, ensuring we don't modify the stored object directly.
 	childWfDef := &model.WorkflowDefinition{
-		Version:          wf.Definition.Version,
+		Version:          liveDef.Version,
 		Inputs:           childInputs,
 		Triggers:         nil, // Child workflows don't use triggers defined in their definition
-		Tasks:            wf.Definition.Tasks,
-		Hooks:            wf.Definition.Hooks,
-		Output:           wf.Definition.Output,
-		SetExecutionTags: wf.Definition.SetExecutionTags,
-		RetryPolicy:      wf.Definition.RetryPolicy,
-		Timeout:          wf.Definition.Timeout,
+		Tasks:            liveDef.Tasks,
+		Hooks:            liveDef.Hooks,
+		Output:           liveDef.Output,
+		SetExecutionTags: liveDef.SetExecutionTags,
+		RetryPolicy:      liveDef.RetryPolicy,
+		Timeout:          liveDef.Timeout,
 	}
 
 	return childWfDef, nil

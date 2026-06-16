@@ -215,6 +215,11 @@ func TestCreateWorkflowDefaultsPaused(t *testing.T) {
 		return w.Status == model.WorkflowStatusPaused
 	})).Return("wf-dp", &model.WorkflowVersion{ID: "v1", VersionNumber: 1, Source: model.WorkflowVersionSourceCreate, IsLive: true, Status: model.WorkflowStatusPaused}, nil)
 
+	// The schedule bakes the LIVE version's definition, so handleWorkflowTrigger
+	// resolves it via GetLiveWorkflowVersion.
+	mockStore.On("GetLiveWorkflowVersion", mock.Anything, "wf-dp").
+		Return(&model.WorkflowVersion{ID: "v1", VersionNumber: 1, IsLive: true, Status: model.WorkflowStatusPaused, Definition: wf.Definition}, nil)
+
 	// PAUSED status still creates the schedule handle so the temporal worker
 	// knows the workflow exists; the schedule is just created in a paused
 	// state and won't fire until the user activates.
@@ -259,6 +264,8 @@ func TestPublishWorkflowWithExplicitActiveStatus(t *testing.T) {
 	mockStore.On("PublishVersion", mock.Anything, "wf-pub", "test-user", model.WorkflowVersionSourcePublish, (*string)(nil), (*string)(nil), (*int)(nil), model.WorkflowStatusActive).
 		Return(publishedVersion, nil).Once()
 	mockStore.On("SetLiveVersion", mock.Anything, "test-tenant", "test-account", "wf-pub", "v-pub-2").Return(nil).Once()
+	mockStore.On("GetLiveWorkflowVersion", mock.Anything, "wf-pub").
+		Return(&model.WorkflowVersion{ID: "v-pub-2", WorkflowID: "wf-pub", VersionNumber: 2, IsLive: true, Status: model.WorkflowStatusActive, Definition: wf.Definition}, nil)
 
 	mockTemporal.On("Describe", "workflow-schedule-wf-pub-0").Return(nil, serviceerror.NewNotFound("not found"))
 	mockTemporal.On("Create", mock.Anything, mock.MatchedBy(func(opts client.ScheduleOptions) bool {
@@ -298,6 +305,8 @@ func TestPublishWorkflowRegistersTriggersWhenAlreadyActive(t *testing.T) {
 	mockStore.On("PublishVersion", mock.Anything, "wf-active", "test-user", model.WorkflowVersionSourcePublish, (*string)(nil), (*string)(nil), (*int)(nil), model.WorkflowStatusActive).
 		Return(publishedVersion, nil).Once()
 	mockStore.On("SetLiveVersion", mock.Anything, "test-tenant", "test-account", "wf-active", "v-active-3").Return(nil).Once()
+	mockStore.On("GetLiveWorkflowVersion", mock.Anything, "wf-active").
+		Return(&model.WorkflowVersion{ID: "v-active-3", WorkflowID: "wf-active", VersionNumber: 3, IsLive: true, Status: model.WorkflowStatusActive, Definition: wf.Definition}, nil)
 
 	// Triggers must still be (re)registered even though the status is unchanged.
 	mockTemporal.On("Describe", "workflow-schedule-wf-active-0").Return(nil, serviceerror.NewNotFound("not found"))
@@ -317,6 +326,117 @@ func TestPublishWorkflowRegistersTriggersWhenAlreadyActive(t *testing.T) {
 	mockTemporal.AssertCalled(t, "Create", mock.Anything, mock.MatchedBy(func(opts client.ScheduleOptions) bool {
 		return opts.ID == "workflow-schedule-wf-active-0"
 	}))
+}
+
+// TestScheduleBakesLiveVersionNotDraft is the H1 regression guard: a scheduled
+// workflow must bake the LIVE version's definition (and the version-linkage Memo)
+// into the Temporal schedule action — never the draft (workflows.definition).
+func TestScheduleBakesLiveVersionNotDraft(t *testing.T) {
+	service, mockTemporal, mockStore, sc := newExecuteTestService()
+
+	// Draft carries the schedule trigger plus a "draft-task"; the live version
+	// carries a different "live-task". The schedule must execute the live one.
+	wf := model.Workflow{
+		Name: "wf-sched",
+		Definition: model.WorkflowDefinition{
+			Triggers: []model.Trigger{{Type: model.WorkflowTriggerSchedule, Params: map[string]any{"cron": "0 * * * *"}}},
+			Tasks:    []model.Task{{ID: "draft-task", Type: "scripting.run_script", Params: map[string]any{"script": "echo"}}},
+		},
+	}
+
+	mockStore.On("FindByName", mock.Anything, "test-tenant", "test-account", wf.Name).Return(nil, sql.ErrNoRows)
+	mockStore.On("CreateWorkflowWithInitialVersion", mock.Anything, "test-tenant", "test-account", mock.Anything).
+		Return("wf-sched", &model.WorkflowVersion{ID: "v-live", VersionNumber: 1, Source: model.WorkflowVersionSourceCreate, IsLive: true, Status: model.WorkflowStatusPaused}, nil)
+	mockStore.On("GetLiveWorkflowVersion", mock.Anything, "wf-sched").Return(&model.WorkflowVersion{
+		ID:            "v-live",
+		WorkflowID:    "wf-sched",
+		VersionNumber: 1,
+		Name:          strPtrLocal("v1-prod"),
+		IsLive:        true,
+		Status:        model.WorkflowStatusPaused,
+		Definition: model.WorkflowDefinition{
+			Triggers: []model.Trigger{{Type: model.WorkflowTriggerSchedule, Params: map[string]any{"cron": "0 * * * *"}}},
+			Tasks:    []model.Task{{ID: "live-task", Type: "scripting.run_script", Params: map[string]any{"script": "echo"}}},
+		},
+	}, nil)
+
+	var capturedAction *client.ScheduleWorkflowAction
+	mockTemporal.On("Describe", "workflow-schedule-wf-sched-0").Return(nil, serviceerror.NewNotFound("not found"))
+	mockTemporal.On("Create", mock.Anything, mock.MatchedBy(func(opts client.ScheduleOptions) bool {
+		return opts.ID == "workflow-schedule-wf-sched-0"
+	})).Run(func(args mock.Arguments) {
+		opts := args.Get(1).(client.ScheduleOptions)
+		capturedAction, _ = opts.Action.(*client.ScheduleWorkflowAction)
+	}).Return(&MockScheduleHandle{}, nil)
+	mockTemporal.On("Describe", "workflow-schedule-wf-sched").Return(nil, serviceerror.NewNotFound("not found"))
+	mockTemporal.On("List", mock.Anything, mock.Anything).Return(&MockScheduleListIterator{Schedules: []*client.ScheduleListEntry{}}, nil)
+
+	_, _, err := service.CreateWorkflow(sc, "test-account", wf)
+	assert.NoError(t, err)
+
+	// The action bakes the LIVE version's definition, not the draft.
+	assert.NotNil(t, capturedAction)
+	bakedWf, ok := capturedAction.Args[0].(*model.Workflow)
+	assert.True(t, ok)
+	assert.Len(t, bakedWf.Definition.Tasks, 1)
+	assert.Equal(t, "live-task", bakedWf.Definition.Tasks[0].ID)
+	// ...and stamps the version-linkage Memo so the run shows the right banner and is retryable.
+	assert.Equal(t, "v-live", capturedAction.Memo[model.MemoWorkflowVersionID])
+	assert.Equal(t, int64(1), capturedAction.Memo[model.MemoWorkflowVersionNumber])
+	assert.Equal(t, "v1-prod", capturedAction.Memo[model.MemoWorkflowVersionName])
+}
+
+// TestSetLiveWorkflowVersionResyncsSchedule is the H3 regression guard: rolling
+// back the live pointer must re-sync Temporal so the schedule executes the
+// rolled-back version, not whatever was previously baked.
+func TestSetLiveWorkflowVersionResyncsSchedule(t *testing.T) {
+	service, mockTemporal, mockStore, sc := newExecuteTestService()
+
+	target := &model.WorkflowVersion{ID: "v1", WorkflowID: "wf-roll", VersionNumber: 1, IsLive: true, Status: model.WorkflowStatusPaused}
+	reloaded := &model.Workflow{
+		ID:     "wf-roll",
+		Name:   "wf-roll",
+		Status: model.WorkflowStatusPaused,
+		Definition: model.WorkflowDefinition{
+			Triggers: []model.Trigger{{Type: model.WorkflowTriggerSchedule, Params: map[string]any{"cron": "0 * * * *"}}},
+			Tasks:    []model.Task{{ID: "draft-task", Type: "scripting.run_script", Params: map[string]any{"script": "echo"}}},
+		},
+		LiveVersionID: strPtrLocal("v1"),
+	}
+	liveV1 := &model.WorkflowVersion{
+		ID: "v1", WorkflowID: "wf-roll", VersionNumber: 1, IsLive: true, Status: model.WorkflowStatusPaused,
+		Definition: model.WorkflowDefinition{
+			Triggers: []model.Trigger{{Type: model.WorkflowTriggerSchedule, Params: map[string]any{"cron": "0 * * * *"}}},
+			Tasks:    []model.Task{{ID: "v1-task", Type: "scripting.run_script", Params: map[string]any{"script": "echo"}}},
+		},
+	}
+
+	mockStore.On("GetWorkflowVersion", mock.Anything, "wf-roll", 1).Return(target, nil)
+	mockStore.On("SetLiveVersion", mock.Anything, "test-tenant", "test-account", "wf-roll", "v1").Return(nil)
+	mockStore.On("Find", mock.Anything, "test-tenant", "test-account", "wf-roll").Return(reloaded, nil)
+	mockStore.On("GetLiveWorkflowVersion", mock.Anything, "wf-roll").Return(liveV1, nil)
+
+	var capturedAction *client.ScheduleWorkflowAction
+	mockTemporal.On("Describe", "workflow-schedule-wf-roll-0").Return(nil, serviceerror.NewNotFound("not found"))
+	mockTemporal.On("Create", mock.Anything, mock.MatchedBy(func(opts client.ScheduleOptions) bool {
+		return opts.ID == "workflow-schedule-wf-roll-0"
+	})).Run(func(args mock.Arguments) {
+		opts := args.Get(1).(client.ScheduleOptions)
+		capturedAction, _ = opts.Action.(*client.ScheduleWorkflowAction)
+	}).Return(&MockScheduleHandle{}, nil)
+	mockTemporal.On("Describe", "workflow-schedule-wf-roll").Return(nil, serviceerror.NewNotFound("not found"))
+	mockTemporal.On("List", mock.Anything, mock.Anything).Return(&MockScheduleListIterator{Schedules: []*client.ScheduleListEntry{}}, nil)
+
+	_, err := service.SetLiveWorkflowVersion(sc, "test-account", "wf-roll", 1)
+	assert.NoError(t, err)
+
+	// The schedule was re-baked from the rolled-back live version (v1), not skipped.
+	assert.NotNil(t, capturedAction, "rollback must re-sync the Temporal schedule")
+	bakedWf, ok := capturedAction.Args[0].(*model.Workflow)
+	assert.True(t, ok)
+	assert.Len(t, bakedWf.Definition.Tasks, 1)
+	assert.Equal(t, "v1-task", bakedWf.Definition.Tasks[0].ID)
+	assert.Equal(t, "v1", capturedAction.Memo[model.MemoWorkflowVersionID])
 }
 
 func strPtrLocal(s string) *string { return &s }

@@ -167,10 +167,10 @@ const CustomTabs = ({
     '&:hover:not(.Mui-selected)': {
       // soft hover on idle tabs; selected tab is highlighted by the sliding pill, no hover needed
       backgroundColor: 'var(--ds-gray-100)',
-      color: 'var(--ds-brand-700)',
+      color: 'var(--ds-tab-active, var(--ds-brand-700))',
     },
     '&.Mui-selected': {
-      color: 'var(--ds-brand-700)',
+      color: 'var(--ds-tab-active, var(--ds-brand-700))',
       fontWeight: 'var(--ds-font-weight-semibold)',
       '& .tab-icon': {
         color: 'var(--ds-gray-700)',
@@ -293,7 +293,7 @@ const CustomTabs = ({
                   height: cellHeight,
                   width: 'var(--ct-indicator-width, 0px)',
                   transform: 'translate3d(var(--ct-indicator-x, 0px), 0, 0)',
-                  backgroundColor: 'var(--ds-blue-200)',
+                  backgroundColor: 'var(--ds-tab-active-bg, var(--ds-blue-200))',
                   borderRadius: 'var(--ds-radius-md)',
                   transition: 'transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1), width 280ms cubic-bezier(0.2, 0.8, 0.2, 1)',
                   willChange: 'transform, width',
@@ -309,7 +309,7 @@ const CustomTabs = ({
                     height: ds.space[0],
                     width: 'var(--ct-indicator-width, 0px)',
                     transform: 'translate3d(var(--ct-indicator-x, 0px), 0, 0)',
-                    backgroundColor: 'var(--ds-brand-600)',
+                    backgroundColor: 'var(--ds-tab-active-indicator, var(--ds-brand-600))',
                     borderRadius: 'var(--ds-radius-sm)',
                     transition: 'transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1), width 280ms cubic-bezier(0.2, 0.8, 0.2, 1)',
                     willChange: 'transform, width',
@@ -349,7 +349,7 @@ const CustomTabs = ({
                           sx={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            color: opt.value === value ? 'var(--ds-brand-700)' : 'var(--ds-gray-500)',
+                            color: opt.value === value ? 'var(--ds-tab-active, var(--ds-brand-700))' : 'var(--ds-gray-500)',
                             '& svg': { fontSize: 16 },
                           }}
                         >

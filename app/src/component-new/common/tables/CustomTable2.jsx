@@ -1071,7 +1071,7 @@ const CustomTable = ({
                   fontWeight: 'var(--ds-font-weight-medium)',
                   fontFamily: 'var(--ds-font-display)',
                   lineHeight: '17px',
-                  color: ds.brand[600],
+                  color: ds.gray[700],
                   background: ds.teal[50],
                   // Suppress MUI's default TableCell bottom border — the
                   // outline is painted via box-shadow below so it can follow

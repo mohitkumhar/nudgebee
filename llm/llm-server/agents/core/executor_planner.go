@@ -3510,13 +3510,26 @@ func (e *plannerExecutor) fastSummarizeTool(action NBAgentPlannerToolAction, que
 	return content, nil
 }
 
+// maxSummaryInputBytes caps the response text fed to the one-line summarizer.
+// The summarizer emits a single 20-word sentence, so it only needs the gist;
+// feeding the full response (e.g. a 200k-token log envelope) wasted enormous
+// prefill for ~20 output tokens.
+const maxSummaryInputBytes = 8192
+
 func generateAsyncAgentSummary(ctx *security.RequestContext, request NBAgentRequest, response string, agentId string) {
 	if agentId == "" || agentId == uuid.Nil.String() {
 		return
 	}
 
-	// Generate 1 liner summary in a single sentence with up to 20 words
-	summaryPrompt := prompts_repo.GetPrompt(prompts_repo.PromptAgentResponseSummary, request.Query, response)
+	// Generate 1 liner summary in a single sentence with up to 20 words.
+	// The summary template is a bare instruction with no format verbs, so the
+	// query and response are appended as content rather than passed as Sprintf
+	// args — passing them dumped the full raw response into the prompt as a
+	// "%!(EXTRA ...)" overflow, inflating summary inputs past 200k tokens. The
+	// response is also capped, since a one-sentence summary needs only the gist.
+	truncatedResponse := SmartTruncateToolOutput(response, maxSummaryInputBytes)
+	summaryPrompt := fmt.Sprintf("%s\n\nUser request: %s\n\nResponse to summarize:\n%s",
+		prompts_repo.GetPrompt(prompts_repo.PromptAgentResponseSummary), request.Query, truncatedResponse)
 	summaryMessages := []llms.MessageContent{
 		llms.TextParts(llms.ChatMessageTypeHuman, summaryPrompt),
 	}

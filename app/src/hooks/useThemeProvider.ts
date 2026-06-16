@@ -7,14 +7,26 @@ import { useBrandingConfig } from './useTenantBranding';
 // Server-side only: load branding file color tokens once for SSR critical CSS.
 let _ssrBrandingTokens: Record<string, string> | null = null;
 let _ssrBrandingLoaded = false;
+// Throttle retries after a failed read (see loadBrandingFile.js): a persistently
+// misconfigured TENANT_BRANDING_FILE must not run a blocking fs.readFileSync on every
+// SSR request and stall the event loop. Transient failures self-heal within the window.
+let _ssrLastAttemptMs = 0;
+const SSR_BRANDING_RETRY_COOLDOWN_MS = 10_000;
 
 function loadSSRBrandingTokens(): Record<string, string> | null {
   if (typeof window !== 'undefined') return null;
   if (_ssrBrandingLoaded) return _ssrBrandingTokens;
-  _ssrBrandingLoaded = true;
+
+  const now = Date.now();
+  if (now - _ssrLastAttemptMs < SSR_BRANDING_RETRY_COOLDOWN_MS) return _ssrBrandingTokens;
+  _ssrLastAttemptMs = now;
 
   const filePath = process.env.TENANT_BRANDING_FILE;
-  if (!filePath) return null;
+  // No branding configured — cache the (permanent) miss and return defaults.
+  if (!filePath) {
+    _ssrBrandingLoaded = true;
+    return null;
+  }
 
   try {
     // Dynamic require to avoid bundling fs into client
@@ -25,8 +37,12 @@ function loadSSRBrandingTokens(): Record<string, string> | null {
     const raw = fs.readFileSync(resolvedPath, 'utf-8');
     const data = JSON.parse(raw);
     _ssrBrandingTokens = data?.colorTokens || null;
+    _ssrBrandingLoaded = true; // cache only a successful read
   } catch {
-    // Branding file not found or invalid — fall back to defaults
+    // Branding file configured but not readable yet (e.g. the branding volume not
+    // visible to this module's first caller). Do NOT cache — leave _ssrBrandingLoaded
+    // false so a later SSR render retries instead of latching defaults for the whole
+    // process lifetime (the color FOUC / bee-favicon flash). Falls back to defaults now.
   }
   return _ssrBrandingTokens;
 }
@@ -52,10 +68,65 @@ export function useThemeProvider(): { theme: Theme; isReady: boolean } {
     if (colorTokens && typeof colorTokens === 'object') {
       const root = document.documentElement;
       for (const [key, value] of Object.entries(colorTokens)) {
-        if (key.startsWith('--nb-') && typeof value === 'string') {
+        // Apply both legacy (--nb-*) and new design-system (--ds-*) tokens.
+        // The UI has migrated most call sites to --ds-*, so a branding kit that
+        // only set --nb-* would no longer retone the app.
+        if ((key.startsWith('--nb-') || key.startsWith('--ds-')) && typeof value === 'string') {
           root.style.setProperty(key, value);
         }
       }
+    }
+
+    // Brand font remap: many components hardcode `fontFamily: 'Poppins' | 'Roboto'`
+    // inline, so theme/token font changes never reach them. A tenant can supply a
+    // `fontRemap` list that re-points those family NAMES at a brand font via
+    // injected @font-face rules — every hardcode then renders in the brand font
+    // with zero component edits. Default theme has no `fontRemap` ⇒ nothing injected.
+    const fontRemap = (brandingConfig as Record<string, unknown>)?.fontRemap as
+      | Array<{ family: string; src: string; weight?: string; style?: string }>
+      | undefined;
+    const STYLE_ID = 'tenant-font-remap';
+    const existing = document.getElementById(STYLE_ID);
+    // Reject any value containing characters that could break out of the
+    // @font-face declaration and inject arbitrary CSS (defacement / data
+    // exfiltration via background images). None of these values legitimately
+    // contain { } ; " or backslash, so we forbid those outright.
+    const isSafeFontValue = (v: string) => !/[{};"\\]/.test(v);
+    // family is emitted INSIDE single quotes (font-family:'X'), so a stray single
+    // quote would close the string literal and let the rest of the value inject
+    // arbitrary declarations. src is NOT single-quoted (it is a url(...) format(...)
+    // expression that legitimately contains single quotes), so it keeps the looser
+    // isSafeFontValue. weight/style are unquoted too, but a single quote is never
+    // valid in them, so we forbid it as cheap defense-in-depth.
+    const isSafeStringValue = (v: string) => isSafeFontValue(v) && !/'/.test(v);
+    if (Array.isArray(fontRemap) && fontRemap.length > 0) {
+      const css = fontRemap
+        .filter(
+          (f) =>
+            f &&
+            typeof f.family === 'string' &&
+            isSafeStringValue(f.family) &&
+            typeof f.src === 'string' &&
+            isSafeFontValue(f.src) &&
+            (f.weight == null || (typeof f.weight === 'string' && isSafeStringValue(f.weight))) &&
+            (f.style == null || (typeof f.style === 'string' && isSafeStringValue(f.style)))
+        )
+        .map(
+          (f) =>
+            `@font-face{font-family:'${f.family}';src:${f.src};font-weight:${f.weight || '100 900'};` +
+            `font-style:${f.style || 'normal'};font-display:swap;}`
+        )
+        .join('');
+      if (existing) existing.textContent = css;
+      else {
+        const el = document.createElement('style');
+        el.id = STYLE_ID;
+        el.textContent = css;
+        document.head.appendChild(el);
+      }
+    } else if (existing) {
+      // Branding switched to a kit without a remap — remove the stale override.
+      existing.remove();
     }
 
     setCssVarsApplied(true);
@@ -118,6 +189,32 @@ export function getCriticalCssTokens(): string {
     '--nb-border-secondary',
     '--nb-border-vertical',
     '--nb-mui-primary',
+    // New design-system (--ds-*) tokens — the families most call sites read for
+    // above-the-fold chrome (primary buttons, sidebar, surfaces, base text/status).
+    // Keeps a branded deploy from flashing the default palette before hydration.
+    '--ds-brand-100',
+    '--ds-brand-200',
+    '--ds-brand-300',
+    '--ds-brand-500',
+    '--ds-brand-600',
+    '--ds-brand-700',
+    '--ds-foreground',
+    '--ds-background-100',
+    '--ds-background-200',
+    '--ds-background-300',
+    '--ds-gray-100',
+    '--ds-gray-300',
+    '--ds-gray-600',
+    '--ds-gray-700',
+    '--ds-blue-100',
+    '--ds-blue-500',
+    '--ds-blue-600',
+    '--ds-blue-700',
+    '--ds-red-100',
+    '--ds-red-500',
+    '--ds-red-600',
+    '--ds-green-100',
+    '--ds-green-500',
   ];
 
   const brandingTokens = loadSSRBrandingTokens();

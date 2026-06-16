@@ -1,5 +1,7 @@
 /* Google Fonts Import */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Roboto:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
+/* Open Sans is loaded for tenant branding (some tenants map it to --ds-font-sans/display);
+   default theme still resolves to Roboto/Poppins, so this is additive only. */
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600&family=Roboto:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
 
 /* ========================================
    NUDGEBEE TYPOGRAPHY UTILITY CLASSES

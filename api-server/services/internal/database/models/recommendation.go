@@ -44,20 +44,21 @@ type RecommendationResolutionStatus string
 type RecommendationResolutionResolverType string
 
 type RecommendationResolution struct {
-	Id               string                               `json:"id" mapstructure:"id" validate:"required" db:"id"`
-	CreatedAt        *time.Time                           `json:"created_at" mapstructure:"created_at"  db:"created_at"`
-	UpdatedAt        *time.Time                           `json:"updated_at" mapstructure:"updated_at"  db:"updated_at"`
-	RecommendationId string                               `json:"recommendation_id" mapstructure:"recommendation_id" validate:"required" db:"recommendation_id"`
-	Type             RecommendationResolutionType         `json:"type" mapstructure:"type"  db:"type"`
-	Data             Json                                 `json:"data" mapstructure:"data"  db:"data"`
-	Status           RecommendationResolutionStatus       `json:"status" mapstructure:"status"  db:"status"`
-	TypeReferenceId  string                               `json:"type_reference_id" mapstructure:"type_reference_id"  db:"type_reference_id"`
-	ResolverType     RecommendationResolutionResolverType `json:"resolver_type" mapstructure:"resolver_type"  db:"resolver_type"`
-	ResolverId       string                               `json:"resolver_id" mapstructure:"resolver_id"  db:"resolver_id"`
-	StatusMessage    *string                              `json:"status_message" mapstructure:"status_message"  db:"status_message"`
-	PRIterationCount *int                                 `json:"pr_iteration_count" mapstructure:"pr_iteration_count"  db:"pr_iteration_count"`
-	PRLifecycleState *string                              `json:"pr_lifecycle_state" mapstructure:"pr_lifecycle_state"  db:"pr_lifecycle_state"`
-	LastPRCheckAt    *time.Time                           `json:"last_pr_check_at" mapstructure:"last_pr_check_at"  db:"last_pr_check_at"`
+	Id                string                               `json:"id" mapstructure:"id" validate:"required" db:"id"`
+	CreatedAt         *time.Time                           `json:"created_at" mapstructure:"created_at"  db:"created_at"`
+	UpdatedAt         *time.Time                           `json:"updated_at" mapstructure:"updated_at"  db:"updated_at"`
+	RecommendationId  string                               `json:"recommendation_id" mapstructure:"recommendation_id" validate:"required" db:"recommendation_id"`
+	Type              RecommendationResolutionType         `json:"type" mapstructure:"type"  db:"type"`
+	Data              Json                                 `json:"data" mapstructure:"data"  db:"data"`
+	Status            RecommendationResolutionStatus       `json:"status" mapstructure:"status"  db:"status"`
+	TypeReferenceId   string                               `json:"type_reference_id" mapstructure:"type_reference_id"  db:"type_reference_id"`
+	ResolverType      RecommendationResolutionResolverType `json:"resolver_type" mapstructure:"resolver_type"  db:"resolver_type"`
+	ResolverId        string                               `json:"resolver_id" mapstructure:"resolver_id"  db:"resolver_id"`
+	StatusMessage     *string                              `json:"status_message" mapstructure:"status_message"  db:"status_message"`
+	PRIterationCount  *int                                 `json:"pr_iteration_count" mapstructure:"pr_iteration_count"  db:"pr_iteration_count"`
+	PRLifecycleState  *string                              `json:"pr_lifecycle_state" mapstructure:"pr_lifecycle_state"  db:"pr_lifecycle_state"`
+	LastPRCheckAt     *time.Time                           `json:"last_pr_check_at" mapstructure:"last_pr_check_at"  db:"last_pr_check_at"`
+	PRFollowupPending *bool                                `json:"pr_followup_pending" mapstructure:"pr_followup_pending"  db:"pr_followup_pending"`
 }
 
 const (

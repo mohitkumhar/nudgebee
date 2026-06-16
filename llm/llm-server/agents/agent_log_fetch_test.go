@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"encoding/json"
 	"nudgebee/llm/agents/core"
 	"nudgebee/llm/security"
 	toolcore "nudgebee/llm/tools/core"
@@ -620,4 +621,41 @@ func TestLooksLikeFetchError(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestMakeFetchResponse_PreviewsLogsWhenFileRefPresent guards the fix that
+// stopped inlining the full logs alongside the file_ref. When logs are saved to
+// a workspace file, only a head preview is inlined (the model greps the file for
+// the rest); when there is no file_ref, the full logs must stay inline.
+func TestMakeFetchResponse_PreviewsLogsWhenFileRefPresent(t *testing.T) {
+	bigLogs := strings.Repeat("x", logInlinePreviewBytes*3)
+
+	decode := func(resp core.NBAgentResponse) map[string]string {
+		assert.Len(t, resp.Response, 1)
+		var env map[string]string
+		assert.NoError(t, json.Unmarshal([]byte(resp.Response[0]), &env))
+		return env
+	}
+
+	t.Run("file_ref present: logs previewed, not inlined in full", func(t *testing.T) {
+		env := decode(makeFetchResponse("fetch_logs", "q", bigLogs, "logs_loki_1.txt", nil))
+		assert.Equal(t, "logs_loki_1.txt", env["file_ref"])
+		assert.Less(t, len(env["logs"]), len(bigLogs),
+			"full logs must not be inlined when a file_ref exists")
+		assert.Contains(t, env["logs"], "file_ref")
+		assert.Contains(t, env["logs"], "shell_execute")
+	})
+
+	t.Run("no file_ref: full logs inlined", func(t *testing.T) {
+		env := decode(makeFetchResponse("fetch_logs", "q", bigLogs, "", nil))
+		assert.Equal(t, "", env["file_ref"])
+		assert.Equal(t, bigLogs, env["logs"],
+			"with no file_ref the full logs must remain available inline")
+	})
+
+	t.Run("file_ref present but logs already small: inlined unchanged", func(t *testing.T) {
+		const small = "tiny log line"
+		env := decode(makeFetchResponse("fetch_logs", "q", small, "logs_loki_2.txt", nil))
+		assert.Equal(t, small, env["logs"])
+	})
 }

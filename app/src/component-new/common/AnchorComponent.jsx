@@ -444,7 +444,7 @@ const AnchorComponent = ({
                     height: ds.space.mul(0, 17),
                     width: 'var(--at-indicator-width, 0px)',
                     transform: 'translate3d(var(--at-indicator-x, 0px), 0, 0)',
-                    backgroundColor: 'var(--ds-blue-200)',
+                    backgroundColor: 'var(--ds-tab-active-bg, var(--ds-blue-200))',
                     borderRadius: 'var(--ds-radius-md)',
                     transition: 'transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1), width 280ms cubic-bezier(0.2, 0.8, 0.2, 1)',
                     willChange: 'transform, width',
@@ -459,7 +459,7 @@ const AnchorComponent = ({
                     height: ds.space[0],
                     width: 'var(--at-indicator-width, 0px)',
                     transform: 'translate3d(var(--at-indicator-x, 0px), 0, 0)',
-                    backgroundColor: 'var(--ds-brand-500)',
+                    backgroundColor: 'var(--ds-tab-active-indicator, var(--ds-brand-500))',
                     borderRadius: 'var(--ds-radius-sm)',
                     transition: 'transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1), width 280ms cubic-bezier(0.2, 0.8, 0.2, 1)',
                     willChange: 'transform, width',
@@ -497,7 +497,7 @@ const AnchorComponent = ({
                           padding: `0 ${ds.space[2]}`,
                           borderRadius: 'var(--ds-radius-md)',
                           backgroundColor: 'transparent',
-                          color: selected ? 'var(--ds-brand-700)' : 'var(--ds-gray-700)',
+                          color: selected ? 'var(--ds-tab-active, var(--ds-brand-700))' : 'var(--ds-gray-700)',
                           transition: 'color 200ms ease, background-color 200ms ease',
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -520,11 +520,11 @@ const AnchorComponent = ({
                           '&:hover .arrow-icon': { transform: 'rotate(180deg)' },
                           '& .arrow-icon': {
                             transition: 'transform 0.3s ease',
-                            color: selected ? 'var(--ds-brand-700)' : 'var(--ds-gray-500)',
+                            color: selected ? 'var(--ds-tab-active, var(--ds-brand-700))' : 'var(--ds-gray-500)',
                           },
                           '&:hover:not([data-tab-selected="true"])': {
                             backgroundColor: 'var(--ds-gray-100)',
-                            color: 'var(--ds-brand-700)',
+                            color: 'var(--ds-tab-active, var(--ds-brand-700))',
                           },
                           '&:hover': {
                             // selected tab keeps the sliding pill as its visual; no hover bg

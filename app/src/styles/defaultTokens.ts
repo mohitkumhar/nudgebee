@@ -449,6 +449,8 @@ export const DEFAULT_CSS_TOKENS: Record<string, string> = {
   '--ds-brand-500': '#2A3D5A',
   '--ds-brand-600': '#1B2D4A',
   '--ds-brand-700': '#122035',
+  // Primary text ink — gray-700 default; see theme-tokens.css for rationale.
+  '--ds-foreground': '#171717',
 
   // Brand yellow (Nudgebee Yellow, anchored at #FACF39)
   '--ds-yellow-100': '#FFFBEA',

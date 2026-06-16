@@ -463,6 +463,8 @@
   --ds-brand-600: #1b2d4a;
   --ds-brand-700: #122035;
 
+  --ds-foreground: var(--ds-gray-700);
+
   /* Brand yellow ("Nudgebee Yellow") — anchored at #FACF39.
      Focus rings, brand sigil bg, marketing accents. NOT a status colour
      — that's amber. NOT an interactive default — too aggressive a draw. */

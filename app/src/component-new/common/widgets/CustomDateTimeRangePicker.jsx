@@ -447,10 +447,6 @@ function CustomDateTimeRangePicker({
                       size='sm'
                       onClick={() => handleShortcutClick(sc)}
                       data-testid={`date-range-shortcut-${sc.replace(/\s+/g, '-').toLowerCase()}`}
-                      // The ghost tone already paints brand-tinted backgrounds on hover,
-                      // but the *active* (selected) shortcut needs a persistent tint to
-                      // signal which one drove the current range — that's what the wrapper
-                      // span below provides.
                     >
                       <Box
                         component='span'

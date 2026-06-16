@@ -93,6 +93,10 @@ type appConfig struct {
 	OtelGrpcTimeoutSeconds int `mapstructure:"otel_grpc_timeout_seconds"`
 	OtelGrpcMaxMsgSize     int `mapstructure:"otel_grpc_max_msg_size"`
 
+	// WebhookMaxBodyBytes caps inbound /api/webhooks/* request bodies to prevent
+	// unbounded-payload OOM (see #26787). Override via WEBHOOK_MAX_BODY_BYTES.
+	WebhookMaxBodyBytes int `mapstructure:"webhook_max_body_bytes"`
+
 	GitCommitNudgebeeUser  string `mapstructure:"git_commit_nudgebee_user"`
 	GitCommitNudgebeeEmail string `mapstructure:"git_commit_nudgebee_user_email"`
 
@@ -313,6 +317,8 @@ func init() {
 	viper.SetDefault("otel_exporter_otlp_endpoint", "127.0.0.1:4317")
 	viper.SetDefault("otel_grpc_timeout_seconds", 5)
 	viper.SetDefault("otel_grpc_max_msg_size", 8*1024*1024)
+
+	viper.SetDefault("webhook_max_body_bytes", 5*1024*1024) // 5 MiB
 
 	viper.SetDefault("nb_retention_days_hasura_cron_events", 1)
 	viper.SetDefault("nb_retention_days_agent_connect_logs", 30)

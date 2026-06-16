@@ -1,0 +1,30 @@
+name: Migrations-Validate
+
+# Fast, cluster-free guard that runs on every PR touching the migration tree.
+# It fails the PR when a NEW migration would collide or land below the
+# golang-migrate high-water mark (a silently-skipped migration). Legacy naming
+# debt is grandfathered to warnings — see api-server/migrations/validate_migrations.py.
+
+on:
+  pull_request:
+    branches: ["main", "test", "prod"]
+    paths:
+      - "api-server/migrations/migrations/app/**"
+      - "api-server/migrations/validate_migrations.py"
+      - ".github/workflows/migrations-validate.yaml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch reference branches the DBs track
+        run: git fetch --no-tags --quiet origin main test prod || true
+
+      - name: Validate migration versions
+        run: |
+          python3 api-server/migrations/validate_migrations.py \
+            --refs origin/main,origin/test,origin/prod

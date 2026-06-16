@@ -177,7 +177,7 @@ const TONE_PALETTE: Record<ButtonTone, TonePalette> = {
     bg: 'transparent',
     bgHover: 'var(--ds-brand-100)',
     bgActive: 'var(--ds-brand-200)',
-    text: 'var(--ds-brand-600)',
+    text: 'var(--ds-gray-600)',
     border: 'transparent',
     borderHover: 'transparent',
   },

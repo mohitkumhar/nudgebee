@@ -132,7 +132,7 @@ const HeaderStrip = ({ title, confidenceScore, requiresFix }) => {
     <Box sx={{ mb: sectionGap }}>
       {isNonEmptyString(title) && (
         <Typography
-          sx={{ fontSize: 'var(--ds-text-title)', fontWeight: 'var(--ds-font-weight-semibold)', color: 'var(--ds-brand-700)', lineHeight: 1.4 }}
+          sx={{ fontSize: 'var(--ds-text-title)', fontWeight: 'var(--ds-font-weight-semibold)', color: 'var(--ds-foreground)', lineHeight: 1.4 }}
         >
           {title}
         </Typography>

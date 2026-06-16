@@ -624,7 +624,15 @@ const AgentHealth = () => {
                 <SafeIcon src={AgentIconBlue} alt='Proxy Agent' width={36} height={36} />
               </Box>
 
-              <Typography sx={{ fontSize: '18px', fontWeight: 600, color: '#101828', mb: 1, fontFamily: 'Poppins' }}>
+              <Typography
+                sx={{
+                  fontSize: 'var(--ds-text-title)',
+                  fontWeight: 'var(--ds-font-weight-semibold)',
+                  color: 'var(--ds-foreground)',
+                  mb: 1,
+                  fontFamily: 'Poppins',
+                }}
+              >
                 Get started with Proxy Agent monitoring
               </Typography>
               <Typography sx={{ fontSize: '14px', color: '#667085', mb: 4, textAlign: 'center', maxWidth: '460px', lineHeight: 1.6 }}>

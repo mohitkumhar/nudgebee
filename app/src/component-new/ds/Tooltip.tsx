@@ -62,7 +62,7 @@ const StyledTooltip = styled(
   return {
     [`& .${tooltipClasses.tooltip}`]: {
       backgroundColor: 'var(--ds-background-100)',
-      color: 'var(--ds-brand-600)',
+      color: 'var(--ds-foreground)',
       border: '1px solid var(--ds-brand-300)',
       boxShadow: '0px 6px 10px var(--ds-gray-alpha-300)',
       borderRadius: 'var(--ds-radius-lg)',
