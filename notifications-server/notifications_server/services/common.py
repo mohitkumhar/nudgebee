@@ -2130,9 +2130,11 @@ class CommonService:
                                     {
                                         "textParagraph": {
                                             "text": (
-                                                f"This space isn't connected to a {branding_name} "
-                                                "organization yet. A tenant admin needs to bind it "
-                                                "before I can help."
+                                                f"This space isn't linked to a {branding_name} "
+                                                "organization you can use here yet. If it's already "
+                                                f"connected to another of your {branding_name} "
+                                                "organizations, switch to that organization to start "
+                                                "using it. Otherwise, an admin can connect it below."
                                             )
                                         }
                                     },
