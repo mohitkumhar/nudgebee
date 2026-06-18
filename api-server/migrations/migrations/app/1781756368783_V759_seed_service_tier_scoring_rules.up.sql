@@ -1,4 +1,4 @@
--- V734_seed_service_tier_scoring_rules up.sql
+-- V759_seed_service_tier_scoring_rules up.sql
 --
 -- Replaces the hardcoded tier-pattern scoring removed from
 -- api-server/services/triage/scoring.go in the same change.

@@ -57,9 +57,6 @@ changelog:
     - title: 🏕 UI
       labels:
         - domain:ui
-    - title: 🏕 Hasura / Database
-      labels:
-        - domain:hasura
 
     # ── Type-based fallback (only fires when no domain:* label landed) ──
     - title: ✨ Features

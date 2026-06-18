@@ -61,8 +61,6 @@ file_labels:
   # ── API server ─────────────────────────────────────────────────────────
   'service:api-server':
     - '^api-server/.*'
-  'domain:hasura':
-    - '^api-server/hasura/.*'
 
   # ── LLM stack ──────────────────────────────────────────────────────────
   'service:llm':

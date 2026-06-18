@@ -1,4 +1,4 @@
--- V734_seed_service_tier_scoring_rules down.sql
+-- V759_seed_service_tier_scoring_rules down.sql
 
 DELETE FROM event_triage_rules
 WHERE id IN (
