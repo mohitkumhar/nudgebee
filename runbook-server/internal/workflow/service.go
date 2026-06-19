@@ -2174,7 +2174,7 @@ func (s *Service) UpdateWorkflowStatus(ctx *security.RequestContext, accountId, 
 	}
 
 	// Finally, update the status in the database.
-	if err := s.store.UpdateWorkflowStatus(ctx.GetContext(), ctx.GetSecurityContext().GetTenantId(), accountId, id, status); err != nil {
+	if err := s.store.UpdateWorkflowStatus(ctx.GetContext(), ctx.GetSecurityContext().GetTenantId(), accountId, id, ctx.GetSecurityContext().GetUserId(), status); err != nil {
 		return err
 	}
 	emitWorkflowAudit(
@@ -3064,7 +3064,7 @@ func (s *Service) applyStatusToLiveVersion(ctx *security.RequestContext, account
 		return fmt.Errorf("failed to load workflow for status change: %w", err)
 	}
 	if wf.LiveVersionID == nil || *wf.LiveVersionID == "" {
-		return s.store.UpdateWorkflowStatus(ctx.GetContext(), tenantId, accountId, id, status)
+		return s.store.UpdateWorkflowStatus(ctx.GetContext(), tenantId, accountId, id, ctx.GetSecurityContext().GetUserId(), status)
 	}
 	if _, err := s.store.UpdateVersionStatus(ctx.GetContext(), tenantId, accountId, id, *wf.LiveVersionID, ctx.GetSecurityContext().GetUserId(), status); err != nil {
 		return fmt.Errorf("failed to update live version status: %w", err)
@@ -4275,7 +4275,7 @@ func (s *Service) PublishWorkflow(ctx *security.RequestContext, accountId, id st
 		// SetLiveVersion mirrors the new live version's status onto
 		// workflows.status in the same UPDATE, so the workflow row's
 		// administrative state always matches what the live version says.
-		if err := s.store.SetLiveVersion(ctx.GetContext(), ctx.GetSecurityContext().GetTenantId(), accountId, id, v.ID); err != nil {
+		if err := s.store.SetLiveVersion(ctx.GetContext(), ctx.GetSecurityContext().GetTenantId(), accountId, id, v.ID, ctx.GetSecurityContext().GetUserId()); err != nil {
 			return nil, fmt.Errorf("failed to mark new version live: %w", err)
 		}
 		v.IsLive = true
@@ -4332,7 +4332,7 @@ func (s *Service) SetLiveWorkflowVersion(ctx *security.RequestContext, accountId
 		}
 		return nil, err
 	}
-	if err := s.store.SetLiveVersion(ctx.GetContext(), ctx.GetSecurityContext().GetTenantId(), accountId, id, target.ID); err != nil {
+	if err := s.store.SetLiveVersion(ctx.GetContext(), ctx.GetSecurityContext().GetTenantId(), accountId, id, target.ID, ctx.GetSecurityContext().GetUserId()); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("workflow with ID %s not found: %w", id, sql.ErrNoRows)
 		}
