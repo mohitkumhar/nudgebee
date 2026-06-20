@@ -81,6 +81,9 @@
   webhook: http://rag-server:9999/load_docs
   schedule: '0 8 * * *'
   payload: {}
+  headers:
+    - name: X-ACTION-TOKEN
+      value_from_env: RAG_SERVER_TOKEN
   retry_conf:
     num_retries: 0
     timeout_seconds: 600
