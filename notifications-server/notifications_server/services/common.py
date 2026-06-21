@@ -67,7 +67,7 @@ class CommonService:
 
     def list_channels(self, platform, tenant):
         try:
-            if platform not in ["slack", "ms_teams", "google_chat"]:
+            if platform not in ["slack", "ms_teams", "google_chat", "discord"]:
                 return BeeHTTPError(400, Err.OS0011, ["platform"])
 
             messaging_platform = (
@@ -85,6 +85,8 @@ class CommonService:
                 return self.get_ms_teams_channels(messaging_platform)
             elif platform == "google_chat":
                 return self.get_google_chat_channels(messaging_platform)
+            elif platform == "discord":
+                return self.get_discord_channels(messaging_platform)
             return {}
         except Exception as e:
             self.session.rollback()
@@ -120,9 +122,24 @@ class CommonService:
 
         return {"data": channels}
 
+    def get_discord_channels(self, messaging_platform):
+        """List text channels the Discord bot has access to across all guilds."""
+        from notifications_server.clients.discord_client import DiscordClient
+
+        token = (
+            messaging_platform.credentials.get("bot_token")
+            if messaging_platform.credentials
+            else messaging_platform.token
+        )
+        result = DiscordClient.channels_list(token)
+        if not result.get("ok"):
+            LOG.error("Failed to list Discord channels: %s", result.get("error"))
+            return {"data": []}
+        return {"data": [{"name": c["name"], "id": c["id"]} for c in result.get("channels", [])]}
+
     def list_users(self, platform, tenant):
         try:
-            if platform not in ["slack", "ms_teams", "google_chat"]:
+            if platform not in ["slack", "ms_teams", "google_chat", "discord"]:
                 return BeeHTTPError(400, Err.OS0011, ["platform"])
 
             messaging_platform = (
@@ -140,6 +157,8 @@ class CommonService:
                 return self.get_ms_teams_users(messaging_platform)
             elif platform == "google_chat":
                 return self.get_google_chat_users(messaging_platform)
+            elif platform == "discord":
+                return {"data": []}  # Discord bots need privileged intents to list members
             return {}
         except Exception as e:
             self.session.rollback()
@@ -1797,7 +1816,7 @@ class CommonService:
 
     def send_test_notification(self, platform, tenant_id, channel_id, team_id=None):
         try:
-            if platform not in ["slack", "ms_teams", "google_chat"]:
+            if platform not in ["slack", "ms_teams", "google_chat", "discord"]:
                 return {"success": False, "platform": platform, "error": f"Unsupported platform: {platform}"}
 
             messaging_platform = self._get_messaging_platform(tenant_id, team_id, platform)
@@ -1808,9 +1827,12 @@ class CommonService:
                     "error": f"No {platform} installation found for tenant: {tenant_id}",
                 }
 
-            platform_display = {"slack": "Slack", "ms_teams": "MS Teams", "google_chat": "Google Chat"}.get(
-                platform, platform
-            )
+            platform_display = {
+                "slack": "Slack",
+                "ms_teams": "MS Teams",
+                "google_chat": "Google Chat",
+                "discord": "Discord",
+            }.get(platform, platform)
             test_message = (
                 f"This is a test notification from Nudgebee. "
                 f"Your {platform_display} integration is working correctly!"
@@ -1822,6 +1844,8 @@ class CommonService:
                 return self._send_test_ms_teams(messaging_platform, channel_id, team_id, test_message, tenant_id)
             elif platform == "google_chat":
                 return self._send_test_google_chat(messaging_platform, channel_id, test_message, tenant_id)
+            elif platform == "discord":
+                return self._send_test_discord(messaging_platform, channel_id, test_message)
 
         except Exception as e:
             LOG.exception("Error sending test notification on %s: %s", platform, e)
@@ -1870,6 +1894,23 @@ class CommonService:
         except Exception as e:
             LOG.error("MS Teams test notification error: %s", e)
             return {"success": False, "platform": "ms_teams", "error": str(e)}
+
+    def _send_test_discord(self, messaging_platform, channel_id, message):
+        from notifications_server.clients.discord_client import DiscordClient
+
+        try:
+            token = (
+                messaging_platform.credentials.get("bot_token")
+                if messaging_platform.credentials
+                else messaging_platform.token
+            )
+            response = DiscordClient.chat_post(token=token, channel_id=channel_id, content=message)
+            if not response.get("ok"):
+                return {"success": False, "platform": "discord", "error": response.get("error", "Unknown error")}
+            return {"success": True, "platform": "discord"}
+        except Exception as e:
+            LOG.error("Error sending Discord test notification: %s", e)
+            return {"success": False, "platform": "discord", "error": str(e)}
 
     def _send_test_google_chat(self, messaging_platform, channel_id, message, tenant_id):
         error = self._refresh_google_chat_token(messaging_platform)
