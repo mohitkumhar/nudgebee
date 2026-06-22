@@ -126,11 +126,7 @@ class CommonService:
         """List text channels the Discord bot has access to across all guilds."""
         from notifications_server.clients.discord_client import DiscordClient
 
-        token = (
-            messaging_platform.credentials.get("bot_token")
-            if messaging_platform.credentials
-            else messaging_platform.token
-        )
+        token = messaging_platform.token
         result = DiscordClient.channels_list(token)
         if not result.get("ok"):
             LOG.error("Failed to list Discord channels: %s", result.get("error"))
@@ -1899,11 +1895,7 @@ class CommonService:
         from notifications_server.clients.discord_client import DiscordClient
 
         try:
-            token = (
-                messaging_platform.credentials.get("bot_token")
-                if messaging_platform.credentials
-                else messaging_platform.token
-            )
+            token = messaging_platform.token
             response = DiscordClient.chat_post(token=token, channel_id=channel_id, content=message)
             if not response.get("ok"):
                 return {"success": False, "platform": "discord", "error": response.get("error", "Unknown error")}

@@ -920,15 +920,10 @@ class MessageService:
 
         discord_payload = get_discord_finding_message(finding)
 
-        # ip.to_channel is set by get_channels_from_request_or_defaults
-        channel_id = ip.to_channel
-        if not channel_id:
-            if ip.channels:
-                channel_id = (
-                    ip.channels[0].get("id")
-                    if isinstance(ip.channels, list) and isinstance(ip.channels[0], dict)
-                    else None
-                )
+        # ip.to_channel is a {name, id} dict set by get_channels_from_request_or_defaults;
+        # normalize it to extract the bare channel ID string.
+        channel = normalize_channel(ip.to_channel)
+        channel_id = channel.get("id") if isinstance(channel, dict) else channel
 
         if not channel_id:
             LOG.error("No channel provided for Discord message")
