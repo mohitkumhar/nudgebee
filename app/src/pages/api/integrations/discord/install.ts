@@ -5,6 +5,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 
 import { authOptions } from '@pages/api/auth/[...nextauth]';
 import { decrypt } from '@lib/internal';
+import { resolveRequestJwt } from '@lib/sessionToken';
 import { getRequestId, handleErrorResponse, sendAuthenticationError } from 'src/utils/apiUtils';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -20,7 +21,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const session = await getServerSession(req, res, authOptions);
     token = !token && session?.user ? ((await getToken({ req }))?.idToken as string) : token;
 
-    if (!token) {
+    const jwtToken = await resolveRequestJwt(req);
+    const tenantId = ((jwtToken?.tenant as { id?: string } | undefined)?.id as string) || null;
+    const userEmail = (jwtToken?.email as string) || null;
+
+    if (!token || !tenantId) {
       return sendAuthenticationError(res);
     }
 
@@ -32,8 +37,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        'tenant-id': req.headers['tenant-id'] as string,
-        'x-user-email': req.headers['x-user-email'] as string,
+        'tenant-id': tenantId,
+        'x-user-email': userEmail || '',
         'x-request-id': requestId,
       },
       body: JSON.stringify(req.body),

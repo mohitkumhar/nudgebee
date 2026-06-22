@@ -29,7 +29,7 @@ class DiscordClient:
 
         try:
             # 1. Get guilds
-            guilds_resp = requests.get(f"{cls.BASE_URL}/users/@me/guilds", headers=headers)
+            guilds_resp = requests.get(f"{cls.BASE_URL}/users/@me/guilds", headers=headers, timeout=10)
             if guilds_resp.status_code != 200:
                 LOG.error(f"Failed to fetch Discord guilds: {guilds_resp.text}")
                 return {"ok": False, "error": guilds_resp.text}
@@ -41,7 +41,7 @@ class DiscordClient:
             for guild in guilds:
                 guild_id = guild["id"]
                 guild_name = guild["name"]
-                chan_resp = requests.get(f"{cls.BASE_URL}/guilds/{guild_id}/channels", headers=headers)
+                chan_resp = requests.get(f"{cls.BASE_URL}/guilds/{guild_id}/channels", headers=headers, timeout=10)
                 if chan_resp.status_code == 200:
                     guild_channels = chan_resp.json()
                     for c in guild_channels:
@@ -73,7 +73,9 @@ class DiscordClient:
             payload["content"] = kwargs["text"]
 
         try:
-            resp = requests.post(f"{cls.BASE_URL}/channels/{channel_id}/messages", headers=headers, json=payload)
+            resp = requests.post(
+                f"{cls.BASE_URL}/channels/{channel_id}/messages", headers=headers, json=payload, timeout=10
+            )
             if resp.status_code in (200, 201):
                 data = resp.json()
                 # Return a dict containing 'data' to act similarly to Slack client responses
@@ -104,7 +106,9 @@ class DiscordClient:
         payload["message_reference"] = kwargs["message_reference"]
 
         try:
-            resp = requests.post(f"{cls.BASE_URL}/channels/{channel_id}/messages", headers=headers, json=payload)
+            resp = requests.post(
+                f"{cls.BASE_URL}/channels/{channel_id}/messages", headers=headers, json=payload, timeout=10
+            )
             if resp.status_code in (200, 201):
                 data = resp.json()
                 return {"ok": True, "ts": data.get("id"), "data": data}
@@ -123,7 +127,7 @@ class DiscordClient:
         """
         headers = cls.get_headers(token)
         try:
-            resp = requests.get(f"{cls.BASE_URL}/users/@me", headers=headers)
+            resp = requests.get(f"{cls.BASE_URL}/users/@me", headers=headers, timeout=10)
             if resp.status_code == 200:
                 data = resp.json()
                 return {"ok": True, "bot": {"id": data.get("id"), "username": data.get("username")}}

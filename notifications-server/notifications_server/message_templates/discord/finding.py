@@ -25,7 +25,7 @@ def get_discord_finding_message(finding: Dict[str, Any]) -> Dict[str, Any]:
     """
     title = finding.get("title", "NudgeBee Finding")
     finding_id = finding.get("id", "")
-    service_key = finding.get("service_key", "")
+    service_key = finding.get("service_key") or ""
     is_cloud = service_key.startswith("arn") or "aws" in service_key
 
     cluster = finding.get("cluster", "Unknown")
@@ -67,7 +67,7 @@ def get_discord_finding_message(finding: Dict[str, Any]) -> Dict[str, Any]:
     evidences = finding.get("evidences", [])
     if evidences and isinstance(evidences, list):
         for evidence in evidences[:5]:  # Max 5 evidence fields to avoid limits
-            if not evidence:
+            if not isinstance(evidence, dict):
                 continue
 
             data = evidence.get("data")
@@ -78,9 +78,8 @@ def get_discord_finding_message(finding: Dict[str, Any]) -> Dict[str, Any]:
             if evidence_type == "table":
                 table_md = Transformer.json_to_markdown_table(data)
                 if table_md and table_md.strip():
-                    embed["fields"].append(
-                        {"name": data.get("table_name", "Data Table"), "value": table_md[:1024], "inline": False}
-                    )
+                    table_name = data.get("table_name", "Data Table") if isinstance(data, dict) else "Data Table"
+                    embed["fields"].append({"name": table_name, "value": table_md[:1024], "inline": False})
             elif evidence_type in {"markdown", "header"}:
                 text = str(data.get("data", data) if isinstance(data, dict) else data)
                 if text and text.strip():

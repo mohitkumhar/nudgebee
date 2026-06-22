@@ -126,6 +126,9 @@ class CommonService:
         """List text channels the Discord bot has access to across all guilds."""
         from notifications_server.clients.discord_client import DiscordClient
 
+        if not messaging_platform:
+            return {"data": []}
+
         token = messaging_platform.token
         result = DiscordClient.channels_list(token)
         if not result.get("ok"):
