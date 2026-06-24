@@ -456,9 +456,18 @@ const WorkflowListing: React.FC<WorkflowListingProps> = ({ accountId }) => {
   };
 
   const handlePauseWorkflow = async (workflow: any) => {
+    if (!accountId || !workflow?.id) {
+      snackbar.error('Cannot pause automation: missing account or automation id');
+      return;
+    }
     setLoading(true);
     try {
-      const response = await apiWorkflow.pauseWorkflow(accountId!, workflow.id);
+      const response = await apiWorkflow.pauseWorkflow(accountId, workflow.id);
+      // pauseWorkflow swallows errors and resolves undefined on failure; treat a
+      // missing response as a failure rather than showing a false success toast.
+      if (!response) {
+        throw new Error('No response from server while pausing automation');
+      }
       const errorMessage = parseHttpResponseBodyMessage(response);
       if (errorMessage) {
         snackbar.error(errorMessage);
@@ -478,9 +487,18 @@ const WorkflowListing: React.FC<WorkflowListingProps> = ({ accountId }) => {
   };
 
   const handleResumeWorkflow = async (workflow: any) => {
+    if (!accountId || !workflow?.id) {
+      snackbar.error('Cannot activate automation: missing account or automation id');
+      return;
+    }
     setLoading(true);
     try {
-      const response = await apiWorkflow.resumeWorkflow(accountId!, workflow.id);
+      const response = await apiWorkflow.resumeWorkflow(accountId, workflow.id);
+      // resumeWorkflow swallows errors and resolves undefined on failure; treat a
+      // missing response as a failure rather than showing a false success toast.
+      if (!response) {
+        throw new Error('No response from server while activating automation');
+      }
       const errorMessage = parseHttpResponseBodyMessage(response);
       if (errorMessage) {
         snackbar.error(errorMessage);
