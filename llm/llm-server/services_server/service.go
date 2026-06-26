@@ -31,6 +31,12 @@ func ExecuteQuery(serviceRequest ServicesQueryRequest) (map[string]string, error
 		return response, fmt.Errorf("services: executequery, unable to process request: %v", err)
 	}
 
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Info("services_server: failed to close response body", "error", err)
+		}
+	}()
+
 	if resp.StatusCode == 401 {
 		return response, fmt.Errorf("unauthorized: %v", resp.Body)
 	}
@@ -38,12 +44,6 @@ func ExecuteQuery(serviceRequest ServicesQueryRequest) (map[string]string, error
 	if resp.StatusCode == 500 {
 		return response, fmt.Errorf("internal Server Error from Services Server, %v", resp.Body)
 	}
-
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			slog.Info("services_server: failed to close response body", "error", err)
-		}
-	}()
 	jsonBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return response, err
@@ -111,6 +111,12 @@ func ExecuteScanImageQuery(scanImageRequest ScanImageServiceRequest) (map[string
 		return response, fmt.Errorf("services: scanimage, unable to process request: %v", err)
 	}
 
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Info("services_server: failed to close response body", "error", err)
+		}
+	}()
+
 	if resp.StatusCode == 401 {
 		return response, fmt.Errorf("unauthorized: %v", resp.Body)
 	}
@@ -118,12 +124,6 @@ func ExecuteScanImageQuery(scanImageRequest ScanImageServiceRequest) (map[string
 	if resp.StatusCode == 500 {
 		return response, fmt.Errorf("internal Server Error from Services Server, %v", resp.Body)
 	}
-
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			slog.Info("services_server: failed to close response body", "error", err)
-		}
-	}()
 	jsonBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return response, err
@@ -157,6 +157,12 @@ func ExecuteScanCisQuery(scanCisRequest ScanCisServiceRequest) (map[string]strin
 		return response, fmt.Errorf("services: scancis, unable to process request: %v", err)
 	}
 
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Info("services: failed to close response body", "error", err)
+		}
+	}()
+
 	if resp.StatusCode == 401 {
 		return response, fmt.Errorf("unauthorized: %v", resp.Body)
 	}
@@ -164,12 +170,6 @@ func ExecuteScanCisQuery(scanCisRequest ScanCisServiceRequest) (map[string]strin
 	if resp.StatusCode == 500 {
 		return response, fmt.Errorf("internal Server Error from Services Server, %v", resp.Body)
 	}
-
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			slog.Info("services: failed to close response body", "error", err)
-		}
-	}()
 	jsonBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return response, err
